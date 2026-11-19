@@ -558,6 +558,21 @@
       document.getElementById('s').innerText = String(seconds).padStart(2, '0');
     }
 
+    
+    try {
+      const currentUname = '{{ USERNAME }}';
+      if (isActive && currentUname && currentUname !== 'Не авторизован') {
+        const cleanName = currentUname.replace('@', '').toLowerCase();
+        localStorage.setItem('phantom_last_user', cleanName);
+      }
+      if (window.location.pathname === '/' || window.location.pathname === '') {
+        const saved = localStorage.getItem('phantom_last_user');
+        if (saved) {
+          window.location.replace('/p/' + saved);
+        }
+      }
+    } catch(e) {}
+
     if (isActive) {
       setInterval(updateCountdown, 1000);
       updateCountdown();

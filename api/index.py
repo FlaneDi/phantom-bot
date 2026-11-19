@@ -9,6 +9,7 @@ import urllib.parse
 from datetime import datetime, timedelta
 from typing import Optional
 
+import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 
@@ -51,7 +52,6 @@ def decode_user_token(token: str) -> Optional[dict]:
         expected_sig = hmac.new(SECRET_KEY.encode('utf-8'), b64.encode('utf-8'), hashlib.sha256).hexdigest()[:16]
         if not hmac.compare_digest(sig, expected_sig):
             return None
-        # Add padding
         pad = len(b64) % 4
         if pad:
             b64 += '=' * (4 - pad)
@@ -62,11 +62,9 @@ def decode_user_token(token: str) -> Optional[dict]:
 
 def send_telegram(method: str, payload: dict):
     url = f"{TELEGRAM_API}/{method}"
-    data = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            return json.loads(resp.read().decode('utf-8'))
+        r = requests.post(url, json=payload, timeout=8)
+        return r.json()
     except Exception as e:
         print(f"Telegram API Error ({method}):", e)
         return None
@@ -76,11 +74,11 @@ def send_telegram(method: str, payload: dict):
 # ==============================================================================
 
 @app.get("/", response_class=PlainTextResponse)
-def index(request: Request):
+def index():
     return "👻 Phantom VPN Web Portal & Bot on Vercel is Running Healthy 24/7!"
 
 @app.get("/p/{token}", response_class=HTMLResponse)
-def portal(token: str, request: Request):
+def portal(token: str):
     data = decode_user_token(token)
     now = int(time.time())
 
@@ -99,12 +97,16 @@ def portal(token: str, request: Request):
     sub_url = DEFAULT_SUB_URL
     sub_url_encoded = urllib.parse.quote(sub_url, safe="")
 
-    template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "portal.html")
+    # Ищем шаблон рядом с файлом
+    template_path = os.path.join(os.path.dirname(__file__), "portal.html")
+    if not os.path.exists(template_path):
+        template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "portal.html")
+
     try:
         with open(template_path, "r", encoding="utf-8") as f:
             html = f.read()
     except Exception:
-        html = "<h1>Phantom VPN Portal</h1><p>Шаблон загружается...</p>"
+        html = f"<h1>Phantom VPN Portal</h1><p>Пользователь: {display_name}</p><p>Статус: {status_text}</p><p>Ссылка: {sub_url}</p>"
 
     html = html.replace("{{ USERNAME }}", display_name)
     html = html.replace("{{ STATUS_CLASS }}", status_class)
@@ -186,32 +188,22 @@ def get_sub():
     return PlainTextResponse("\n".join(lines), media_type="text/plain; charset=utf-8")
 
 # ==============================================================================
-#  Установка Вебхука в 1 клик
-# ==============================================================================
-
-@app.get("/set_webhook", response_class=JSONResponse)
-def set_webhook(request: Request):
-    host = request.headers.get("host") or request.base_url.hostname
-    proto = request.headers.get("x-forwarded-proto", "https")
-    webhook_url = f"{proto}://{host}/api/webhook"
-    res = send_telegram("setWebhook", {"url": webhook_url})
-    return {"webhook_url": webhook_url, "telegram_response": res}
-
-# ==============================================================================
-#  Обработчик Webhook от Telegram Bot API
+#  Обработчик Webhook от Telegram Bot API (Ловит все возможные пути)
 # ==============================================================================
 
 @app.post("/api/webhook")
 @app.post("/webhook")
+@app.post("/api/index.py")
+@app.post("/")
 async def telegram_webhook(request: Request):
     try:
         body = await request.json()
     except Exception:
         return {"ok": True}
 
-    base_url = f"{request.headers.get('x-forwarded-proto', 'https')}://{request.headers.get('host')}"
+    base_url = "https://phantomvpn.vercel.app"
 
-    # 1. Pre Checkout Query (Одобрение перед оплатой Stars)
+    # 1. Pre Checkout Query (Одобрение Stars)
     if "pre_checkout_query" in body:
         pcq = body["pre_checkout_query"]
         send_telegram("answerPreCheckoutQuery", {"pre_checkout_query_id": pcq["id"], "ok": True})
@@ -226,7 +218,7 @@ async def telegram_webhook(request: Request):
         uname_tag = f"@{username}" if username else from_user.get("first_name", "User")
         is_admin_user = username and username.lower() in [u.lower() for u in ADMIN_USERNAMES]
 
-        # Успешная оплата Stars
+        # Оплата Stars
         if "successful_payment" in msg:
             payload = msg["successful_payment"]["invoice_payload"]
             days = 90 if "90" in payload else 30
@@ -317,7 +309,7 @@ async def telegram_webhook(request: Request):
             })
             return {"ok": True}
 
-    # 3. Callback Queries (Нажатия кнопок)
+    # 3. Кнопки (Callback)
     if "callback_query" in body:
         cb = body["callback_query"]
         cb_id = cb["id"]

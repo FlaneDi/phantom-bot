@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phantom VPN · Личный Кабинет</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: rgba(22, 25, 38, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #8a2be2;
+      --accent: #00f0ff;
+      --text: #ffffff;
+      --text-muted: #8e95ad;
+      --success: #00ff88;
+      --danger: #ff3366;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(138, 43, 226, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.14) 0%, transparent 40%);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(138, 43, 226, 0.18);
+      border: 1px solid rgba(138, 43, 226, 0.4);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .title {
+      font-size: 30px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ffffff 40%, #8e95ad 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .user-name {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .plan-name {
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-active {
+      background: rgba(0, 255, 136, 0.12);
+      color: var(--success);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+
+    .badge-expired {
+      background: rgba(255, 51, 102, 0.12);
+      color: var(--danger);
+      border: 1px solid rgba(255, 51, 102, 0.3);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .countdown-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .timer-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .timer-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 10px 4px;
+      text-align: center;
+    }
+
+    .timer-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      display: block;
+    }
+
+    .timer-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 2px;
+      display: block;
+    }
+
+    .sub-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sub-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .sub-input {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      outline: none;
+      width: 100%;
+      word-break: break-all;
+      resize: none;
+      cursor: text;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #8a2be2 0%, #4a00e0 100%);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(138, 43, 226, 0.4);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .qr-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    #qrcode {
+      padding: 10px;
+      background: #fff;
+      border-radius: 12px;
+      display: inline-block;
+    }
+
+    .qr-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .perks-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 13px;
+      text-align: left;
+      width: 100%;
+    }
+
+    .perks-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #d1d5db;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: rgba(0, 255, 136, 0.95);
+      color: #000;
+      font-weight: 700;
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="logo-badge">👻 Ghost Protocol · 4K Ready</div>
+      <h1 class="title">Phantom VPN</h1>
+      <p class="subtitle">Персональный личный кабинет подписчика</p>
+    </div>
+
+    <div class="card">
+      <div class="status-row">
+        <div class="user-info">
+          <span class="user-name">{{ USERNAME }}</span>
+          <span class="plan-name">Тариф: VIP Безлимит 24/7</span>
+        </div>
+        <div class="badge-status {{ STATUS_CLASS }}">
+          <span class="dot"></span> {{ STATUS_TEXT }}
+        </div>
+      </div>
+
+      <div class="countdown-title">До окончания подписки осталось:</div>
+      <div class="timer-grid">
+        <div class="timer-box">
+          <span class="timer-num" id="d">00</span>
+          <span class="timer-label">Дней</span>
+        </div>
+        <div class="timer-box">
+          <span class="timer-num" id="h">00</span>
+          <span class="timer-label">Часов</span>
+        </div>
+        <div class="timer-box">
+          <span class="timer-num" id="m">00</span>
+          <span class="timer-label">Минут</span>
+        </div>
+        <div class="timer-box">
+          <span class="timer-num" id="s">00</span>
+          <span class="timer-label">Секунд</span>
+        </div>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-label">
+          <span>Твоя ссылка для Happ VPN:</span>
+          <span id="click-hint" style="color: var(--accent); cursor: pointer;" onclick="copySub()">Скопировать</span>
+        </div>
+        <textarea id="sub-url-input" class="sub-input" rows="2" readonly>{{ SUB_URL }}</textarea>
+      </div>
+
+      <div class="btn-group">
+        <a href="happ://add-sub?url={{ SUB_URL_ENCODED }}" class="btn btn-primary">
+          🚀 Добавить в Happ VPN в 1 клик
+        </a>
+        <button onclick="copySub()" class="btn btn-secondary">
+          📋 Скопировать ссылку подписки
+        </button>
+      </div>
+    </div>
+
+    <!-- QR Code Card -->
+    <div class="card qr-card">
+      <div id="qrcode"></div>
+      <div class="qr-text">Отсканируй камерой или в Happ VPN для мгновенного импорта</div>
+
+      <ul class="perks-list">
+        <li>📱 <b>18 LTE серверов:</b> Обход мобильных глушилок операторов</li>
+        <li>⚡ <b>7 Wi-Fi 4K серверов:</b> YouTube 4K, Gemini, Discord, Instagram</li>
+        <li>🔒 <b>Ghost Reality Protocol:</b> Полная маскировка под обычные сайты</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">✅ Ссылка скопирована в буфер!</div>
+
+  <script>
+    const expireTimestamp = {{ EXPIRE_TIMESTAMP }};
+    const subUrl = "{{ SUB_URL }}";
+
+    // Генерация QR Кода
+    try {
+      new QRCode(document.getElementById("qrcode"), {
+        text: subUrl,
+        width: 140,
+        height: 140,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.M
+      });
+    } catch(e) {}
+
+    // Таймер обратного отсчета в реальном времени
+    function updateCountdown() {
+      const now = Math.floor(Date.now() / 1000);
+      let diff = expireTimestamp - now;
+
+      if (diff <= 0) {
+        document.getElementById('d').innerText = "00";
+        document.getElementById('h').innerText = "00";
+        document.getElementById('m').innerText = "00";
+        document.getElementById('s').innerText = "00";
+        return;
+      }
+
+      const days = Math.floor(diff / 86400);
+      diff -= days * 86400;
+      const hours = Math.floor(diff / 3600);
+      diff -= hours * 3600;
+      const minutes = Math.floor(diff / 60);
+      const seconds = diff % 60;
+
+      document.getElementById('d').innerText = String(days).padStart(2, '0');
+      document.getElementById('h').innerText = String(hours).padStart(2, '0');
+      document.getElementById('m').innerText = String(minutes).padStart(2, '0');
+      document.getElementById('s').innerText = String(seconds).padStart(2, '0');
+    }
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    // Копирование в буфер
+    function copySub() {
+      const input = document.getElementById('sub-url-input');
+      input.select();
+      navigator.clipboard.writeText(subUrl).then(() => {
+        showToast();
+      }).catch(() => {
+        document.execCommand('copy');
+        showToast();
+      });
+    }
+
+    function showToast() {
+      const t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+  </script>
+</body>
+</html>

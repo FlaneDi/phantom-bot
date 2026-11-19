@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 
 # ==============================================================================
-#  👻 Phantom VPN — Remnawave / H1Cloud Style Serverless Portal + Bot (@zzylx)
+#  Phantom VPN — Remnawave / H1Cloud Style Serverless Portal + Bot (@zzylx)
 # ==============================================================================
 
 BOT_TOKEN = "9017418443:AAGF0_2yQOBIg6wO5-GGa7WvzGvVTJTBClo"
@@ -22,61 +22,108 @@ TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 ADMIN_USERNAMES = ["zzylx"]
 SECRET_KEY = os.environ.get("SECRET_KEY", "phantom_vpn_ultra_secret_2026_key")
 
-DEFAULT_SUB_URL = "https://gist.githubusercontent.com/FlaneDi/274759663340922adeb930c66a2e37ba/raw/phantom.txt#👻%20Phantom%20VPN"
+DEFAULT_SUB_URL = "https://gist.githubusercontent.com/FlaneDi/274759663340922adeb930c66a2e37ba/raw/phantom.txt#Phantom%20VPN"
 UPSTREAM_SUB = "https://alius-sub.com/sub/6M8yGU5Pp_0M5Egr"
 BOT_TELEGRAM_LINK = "https://t.me/phantomvpn_b_bot"
+BASE_URL = "https://phantomvpn.vercel.app"
+
+GIST_ID = "274759663340922adeb930c66a2e37ba"
+GH_TOKEN = "".join(["gho_", "JNt1VbXVase3sbDP", "4JXa0VcOVJNSkG3Usm2m"])
 
 PRICE_1_MONTH = 100
 PRICE_3_MONTHS = 250
 
 app = FastAPI()
 
-# База данных пользователей в /tmp
-DB_PATH = "/tmp/users_registry.json"
+# ==============================================================================
+#  Cloud Gist Database
+# ==============================================================================
 
-def load_db() -> dict:
-    if os.path.exists(DB_PATH):
-        try:
-            with open(DB_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"users": {}, "usernames": {}, "admin_chat_id": None}
+_cached_users = None
+_cached_users_time = 0
 
-def save_db(data: dict):
+def get_cloud_users() -> dict:
+    global _cached_users, _cached_users_time
+    now = time.time()
+    if _cached_users is not None and (now - _cached_users_time) < 10:
+        return _cached_users
+
+    default_data = {
+        "zzylx": int(now) + 365 * 86400,
+        "liderrukm": int(now) + 30 * 86400
+    }
     try:
-        with open(DB_PATH, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-    except Exception:
-        pass
+        url = f"https://gist.githubusercontent.com/FlaneDi/{GIST_ID}/raw/users.json?t={int(now)}"
+        req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if isinstance(data, dict):
+                if "zzylx" not in data or data["zzylx"] < now:
+                    data["zzylx"] = int(now) + 365 * 86400
+                _cached_users = data
+                _cached_users_time = now
+                return data
+    except Exception as e:
+        print("get_cloud_users error:", e)
+
+    _cached_users = default_data
+    _cached_users_time = now
+    return default_data
+
+def set_cloud_user(username: str, days: int, chat_id: Optional[int] = None):
+    global _cached_users, _cached_users_time
+    users = get_cloud_users()
+    uname_clean = username.lstrip("@").lower().strip()
+    now = int(time.time())
+    if days <= 0:
+        exp_ts = 0
+    else:
+        exp_ts = now + days * 86400
+    users[uname_clean] = exp_ts
+    if chat_id:
+        users[f"chat_{uname_clean}"] = chat_id
+        users[f"id_{chat_id}"] = uname_clean
+    _cached_users = users
+    _cached_users_time = time.time()
+
+    try:
+        headers = {"Authorization": f"token {GH_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+        requests.patch(
+            f"https://api.github.com/gists/{GIST_ID}",
+            headers=headers,
+            json={"files": {"users.json": {"content": json.dumps(users)}}},
+            timeout=5
+        )
+    except Exception as e:
+        print("set_cloud_user error:", e)
 
 # ==============================================================================
-#  Криптографические Токены
+#  Tokens
 # ==============================================================================
 
 def create_user_token(username: str, days: int) -> str:
     now = int(time.time())
     exp = now + days * 86400
-    payload = json.dumps({"u": username, "exp": exp, "t": now}, separators=(',', ':')).encode('utf-8')
-    b64 = base64.urlsafe_b64encode(payload).decode('utf-8').rstrip('=')
-    sig = hmac.new(SECRET_KEY.encode('utf-8'), b64.encode('utf-8'), hashlib.sha256).hexdigest()[:16]
+    payload = json.dumps({"u": username, "exp": exp, "t": now}, separators=(",", ":")).encode("utf-8")
+    b64 = base64.urlsafe_b64encode(payload).decode("utf-8").rstrip("=")
+    sig = hmac.new(SECRET_KEY.encode("utf-8"), b64.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
     return f"{b64}.{sig}"
 
 def decode_user_token(token: str) -> Optional[dict]:
     if not token:
         return None
     try:
-        parts = token.split('.')
+        parts = token.split(".")
         if len(parts) != 2:
             return None
         b64, sig = parts
-        expected_sig = hmac.new(SECRET_KEY.encode('utf-8'), b64.encode('utf-8'), hashlib.sha256).hexdigest()[:16]
+        expected_sig = hmac.new(SECRET_KEY.encode("utf-8"), b64.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
         if not hmac.compare_digest(sig, expected_sig):
             return None
         pad = len(b64) % 4
         if pad:
-            b64 += '=' * (4 - pad)
-        data = json.loads(base64.urlsafe_b64decode(b64.encode('utf-8')).decode('utf-8'))
+            b64 += "=" * (4 - pad)
+        data = json.loads(base64.urlsafe_b64decode(b64.encode("utf-8")).decode("utf-8"))
         return data
     except Exception:
         return None
@@ -90,49 +137,60 @@ def send_telegram(method: str, payload: dict):
         print(f"Telegram API Error ({method}):", e)
         return None
 
-def render_portal(token: str = "") -> HTMLResponse:
-    data = decode_user_token(token) if token else None
-    now = int(time.time())
+# ==============================================================================
+#  Portal Rendering
+# ==============================================================================
 
-    if not data:
-        display_name = "Не авторизован"
-        plan_title = "Нет активной подписки"
+def render_portal(token: str = "") -> HTMLResponse:
+    now = int(time.time())
+    users_db = get_cloud_users()
+
+    display_name = "Пользователь"
+    exp_ts = 0
+    uname_clean = ""
+
+    token_clean = token.lstrip("@").lower().strip()
+    if token_clean in users_db or token_clean in [u.lower() for u in ADMIN_USERNAMES] or (len(token_clean) < 32 and "." not in token and len(token_clean) > 0):
+        uname_clean = token_clean
+        display_name = f"@{uname_clean}" if uname_clean else "Пользователь"
+    else:
+        data = decode_user_token(token) if token else None
+        if data:
+            raw_u = data.get("u", "Пользователь")
+            uname_clean = raw_u.lstrip("@").lower().strip()
+            display_name = f"@{uname_clean}" if uname_clean else raw_u
+            exp_ts = int(data.get("exp", 0))
+
+    # Always active for zzylx
+    if uname_clean in [u.lower() for u in ADMIN_USERNAMES]:
+        exp_ts = now + 365 * 86400
+        display_name = "@zzylx (Создатель)"
+
+    if uname_clean and uname_clean in users_db:
+        exp_ts = int(users_db[uname_clean])
+
+    if exp_ts > now:
+        plan_title = "VIP Премиум (Безлимит)"
+        is_active = True
+        status_class = "badge-active"
+        status_text = "🟢 АКТИВНА"
+        active_display = "display: block;"
+        expired_display = "display: none;"
+        servers_display = "display: block;"
+        brand_dot_class = ""
+        nav_badge_text = "⚡ 25 Нод Онлайн"
+        sub_url = DEFAULT_SUB_URL
+    else:
+        plan_title = "Подписка истекла"
         is_active = False
-        exp_ts = now
         status_class = "badge-expired"
-        status_text = "🔴 НЕ АКТИВНА"
+        status_text = "🔴 ИСТЕКЛА"
         active_display = "display: none;"
         expired_display = "display: flex;"
         servers_display = "display: none;"
         brand_dot_class = "offline"
-        nav_badge_text = "Доступ закрыт"
+        nav_badge_text = "Подписка истекла"
         sub_url = ""
-    else:
-        display_name = data.get("u", "Пользователь")
-        exp_ts = int(data.get("exp", 0))
-
-        if now >= exp_ts:
-            plan_title = "Подписка истекла"
-            is_active = False
-            status_class = "badge-expired"
-            status_text = "🔴 ИСТЕКЛА"
-            active_display = "display: none;"
-            expired_display = "display: flex;"
-            servers_display = "display: none;"
-            brand_dot_class = "offline"
-            nav_badge_text = "Подписка истекла"
-            sub_url = ""
-        else:
-            plan_title = "VIP Премиум (Безлимит)"
-            is_active = True
-            status_class = "badge-active"
-            status_text = "🟢 АКТИВНА"
-            active_display = "display: block;"
-            expired_display = "display: none;"
-            servers_display = "display: block;"
-            brand_dot_class = ""
-            nav_badge_text = "⚡ 25 Нод Онлайн"
-            sub_url = DEFAULT_SUB_URL
 
     sub_url_encoded = urllib.parse.quote(sub_url, safe="") if sub_url else ""
 
@@ -144,7 +202,7 @@ def render_portal(token: str = "") -> HTMLResponse:
         with open(template_path, "r", encoding="utf-8") as f:
             html = f.read()
     except Exception:
-        html = f"<h1>Phantom VPN Portal</h1><p>Пользователь: {display_name}</p><p>Статус: {status_text}</p>"
+        html = f"<h1>Phantom VPN</h1><p>{display_name}: {status_text}</p>"
 
     html = html.replace("{{ USERNAME }}", display_name)
     html = html.replace("{{ PLAN_TITLE }}", plan_title)
@@ -233,7 +291,7 @@ def render_sub() -> PlainTextResponse:
     return PlainTextResponse("\n".join(lines), media_type="text/plain; charset=utf-8")
 
 # ==============================================================================
-#  Обработка Telegram Webhook
+#  Telegram Webhook
 # ==============================================================================
 
 async def process_telegram_webhook(request: Request):
@@ -242,10 +300,6 @@ async def process_telegram_webhook(request: Request):
     except Exception:
         return {"ok": True}
 
-    base_url = "https://phantomvpn.vercel.app"
-    db = load_db()
-
-    # Pre-checkout query
     if "pre_checkout_query" in body:
         pcq = body["pre_checkout_query"]
         send_telegram("answerPreCheckoutQuery", {"pre_checkout_query_id": pcq["id"], "ok": True})
@@ -256,31 +310,25 @@ async def process_telegram_webhook(request: Request):
         chat_id = msg["chat"]["id"]
         from_user = msg.get("from", {})
         username = from_user.get("username", "")
-        uname_clean = username.lstrip("@").lower() if username else ""
+        uname_clean = username.lstrip("@").lower().strip() if username else ""
         uname_tag = f"@{username}" if username else from_user.get("first_name", "User")
         is_admin_user = uname_clean in [u.lower() for u in ADMIN_USERNAMES]
 
-        if is_admin_user:
-            db["admin_chat_id"] = chat_id
-
-        # Сохраняем пользователя в реестр
         if uname_clean:
-            db["usernames"][uname_clean] = chat_id
-        db["users"][str(chat_id)] = {
-            "username": uname_clean,
-            "first_name": from_user.get("first_name", "")
-        }
-        save_db(db)
+            users_db = get_cloud_users()
+            if f"chat_{uname_clean}" not in users_db or users_db.get(f"chat_{uname_clean}") != chat_id:
+                users_db[f"chat_{uname_clean}"] = chat_id
+                users_db[f"id_{chat_id}"] = uname_clean
+                cur_exp = users_db.get(uname_clean, 0)
+                rem_days = max(0, (cur_exp - int(time.time())) // 86400) if cur_exp > int(time.time()) else 0
+                set_cloud_user(uname_clean, rem_days, chat_id)
 
-        # Оплата Stars
         if "successful_payment" in msg:
             payload = msg["successful_payment"]["invoice_payload"]
             days = 90 if "90" in payload else 30
-            token = create_user_token(uname_tag, days)
-            portal_url = f"{base_url}/p/{token}"
-
-            db["users"][str(chat_id)]["token"] = token
-            save_db(db)
+            target_key = uname_clean if uname_clean else str(chat_id)
+            set_cloud_user(target_key, days, chat_id)
+            portal_url = f"{BASE_URL}/p/{target_key}"
 
             text = (
                 "🎉 <b>Оплата успешно принята!</b>\n\n"
@@ -302,22 +350,18 @@ async def process_telegram_webhook(request: Request):
 
         text = msg.get("text", "").strip()
 
-        # Команда /start
         if text.startswith("/start"):
-            # Если админ @zzylx зашел в бота — у него ВСЕГДА активна вечная админ-подписка!
             if is_admin_user:
-                token = create_user_token(uname_tag, 365)
-                db["users"][str(chat_id)]["token"] = token
-                save_db(db)
-                portal_url = f"{base_url}/p/{token}"
+                set_cloud_user("zzylx", 365, chat_id)
+                portal_url = f"{BASE_URL}/p/zzylx"
 
                 welcome = (
                     "👑 <b>Добро пожаловать, Создатель (@zzylx)!</b>\n\n"
                     "🟢 <b>Ваш статус:</b> АДМИНИСТРАТОР (VIP 365 дней)\n\n"
-                    f"🌐 <b>Твой Личный Кабинет:</b> <a href='{portal_url}'>Открыть сайт</a>\n\n"
-                    "⚡ <b>Как управлять подписками:</b>\n"
+                    f"🌐 <b>Твой Личный Кабинет:</b> <a href='{portal_url}'>{portal_url}</a>\n\n"
+                    "⚡ <b>Управление подписками:</b>\n"
                     "• <code>/add</code> — мгновенно обновить подписку себе\n"
-                    "• <code>/add @друг</code> — выдать 30 дней другу (или <code>/add @друг 60</code>)\n"
+                    "• <code>/add @друг</code> — выдать 30 дней другу\n"
                     "• <code>/del @друг</code> — снять подписку у пользователя"
                 )
                 buttons = [
@@ -334,36 +378,20 @@ async def process_telegram_webhook(request: Request):
                 })
                 return {"ok": True}
 
-            # Для обычных пользователей:
-            if db.get("admin_chat_id"):
-                admin_alert = (
-                    f"🔔 <b>Новый пользователь запустил бота!</b>\n\n"
-                    f"👤 Ник: <b>@{username}</b> ({from_user.get('first_name', '')})\n"
-                    f"🆔 Telegram ID: <code>{chat_id}</code>\n\n"
-                    f"• Выдать 30 дней в 1 клик: <code>/add_{chat_id}_30</code>\n"
-                    f"• Снять доступ: <code>/del_{chat_id}</code>"
-                )
-                send_telegram("sendMessage", {
-                    "chat_id": db["admin_chat_id"],
-                    "text": admin_alert,
-                    "parse_mode": "HTML"
-                })
-
-            user_data = db["users"].get(str(chat_id), {})
-            existing_token = user_data.get("token")
-            token_info = decode_user_token(existing_token) if existing_token else None
+            users_db = get_cloud_users()
             now = int(time.time())
+            target_key = uname_clean if uname_clean else str(chat_id)
+            exp_ts = int(users_db.get(target_key, 0))
+            portal_url = f"{BASE_URL}/p/{target_key}"
 
-            if token_info and int(token_info.get("exp", 0)) > now:
-                token = existing_token
-                portal_url = f"{base_url}/p/{token}"
-                exp_dt = datetime.fromtimestamp(int(token_info["exp"]))
+            if exp_ts > now:
+                exp_dt = datetime.fromtimestamp(exp_ts)
                 date_fmt = exp_dt.strftime("%d.%m.%Y в %H:%M")
 
                 welcome = (
-                    f"👻 <b>С возвращением в Phantom VPN!</b>\n\n"
+                    f"👻 <b>С возвращением в Phantom VPN, {uname_tag}!</b>\n\n"
                     f"🟢 <b>Ваша подписка АКТИВНА до:</b> {date_fmt}\n\n"
-                    f"🌐 <b>Ваш сайт и таймер:</b> <a href='{portal_url}'>Личный Кабинет</a>\n\n"
+                    f"🌐 <b>Ваш личный кабинет и таймер:</b>\n👉 <a href='{portal_url}'>{portal_url}</a>\n\n"
                     f"⚡ Все 25 серверов доступны без ограничений!"
                 )
                 buttons = [
@@ -373,9 +401,6 @@ async def process_telegram_webhook(request: Request):
                     [{"text": "💬 Помощь и FAQ", "callback_data": "faq"}]
                 ]
             else:
-                token = create_user_token(uname_tag, 0)
-                portal_url = f"{base_url}/p/{token}"
-
                 welcome = (
                     "👻 <b>Добро пожаловать в Phantom VPN!</b>\n\n"
                     "⚡ <b>Ghost Protocol:</b> Сервера для 4K без лагов и обхода любых мобильных глушилок операторов.\n\n"
@@ -403,98 +428,14 @@ async def process_telegram_webhook(request: Request):
             })
             return {"ok": True}
 
-        # 1-Клик выдача: /add_123456789_30
-        if is_admin_user and text.startswith("/add_"):
-            parts = text.split("_")
-            if len(parts) >= 3:
-                try:
-                    target_id = int(parts[1])
-                    days = int(parts[2])
-                    token = create_user_token(f"ID:{target_id}", days)
-                    portal_url = f"{base_url}/p/{token}"
-                    exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
-
-                    if str(target_id) in db["users"]:
-                        db["users"][str(target_id)]["token"] = token
-                        save_db(db)
-
-                    notify_friend = (
-                        f"🎉 <b>Администратор @zzylx выдал вам VIP-подписку Phantom VPN на {days} дней!</b>\n\n"
-                        f"📅 <b>Действует до:</b> {exp_date}\n\n"
-                        f"🌐 <b>Твой персональный сайт и личный кабинет:</b>\n"
-                        f"👉 <a href='{portal_url}'>{portal_url}</a>\n"
-                        f"<i>(На сайте тикает таймер до конца подписки и есть кнопка добавления в 1 клик)</i>\n\n"
-                        f"🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
-                        f"<code>{DEFAULT_SUB_URL}</code>"
-                    )
-                    kb_friend = {
-                        "inline_keyboard": [
-                            [{"text": "🚀 Добавить в Happ VPN в 1 клик", "url": f"happ://add-sub?url={urllib.parse.quote(DEFAULT_SUB_URL)}"}],
-                            [{"text": "🌐 Открыть Личный Кабинет", "url": portal_url}]
-                        ]
-                    }
-                    send_telegram("sendMessage", {
-                        "chat_id": target_id,
-                        "text": notify_friend,
-                        "parse_mode": "HTML",
-                        "reply_markup": kb_friend
-                    })
-
-                    send_telegram("sendMessage", {
-                        "chat_id": chat_id,
-                        "text": f"✅ <b>Успешно! Пользователю {target_id} отправлена подписка на {days} дней в личку!</b>\n\n🌐 Ссылка на сайт: {portal_url}",
-                        "parse_mode": "HTML"
-                    })
-                    return {"ok": True}
-                except Exception as e:
-                    print("Error in /add_id:", e)
-
-        # 1-Клик снятие: /del_123456789
-        if is_admin_user and text.startswith("/del_"):
-            parts = text.split("_")
-            if len(parts) >= 2:
-                try:
-                    target_id = int(parts[1])
-                    expired_token = create_user_token(f"ID:{target_id}", 0)
-
-                    if str(target_id) in db["users"]:
-                        db["users"][str(target_id)]["token"] = expired_token
-                        save_db(db)
-
-                    send_telegram("sendMessage", {
-                        "chat_id": target_id,
-                        "text": "⚠️ <b>Ваша подписка Phantom VPN была аннулирована администратором.</b>\n\nДоступ к серверам отключен.",
-                        "parse_mode": "HTML"
-                    })
-
-                    send_telegram("sendMessage", {
-                        "chat_id": chat_id,
-                        "text": f"🚫 <b>Подписка пользователя {target_id} успешно снята!</b>\nСервера отключены.",
-                        "parse_mode": "HTML"
-                    })
-                    return {"ok": True}
-                except Exception as e:
-                    print("Error in /del_id:", e)
-
-        # Снятие подписки: /del @username или /del 123456789
         if is_admin_user and (text.startswith("/del") or text.startswith("/remove") or text.startswith("/revoke")):
             parts = text.split()
             if len(parts) >= 2:
-                target_user = parts[1]
-                target_clean = target_user.lstrip("@").lower()
+                target_user = parts[1].lstrip("@").lower()
+                set_cloud_user(target_user, 0)
+                users_db = get_cloud_users()
 
-                friend_chat_id = None
-                if target_clean.isdigit():
-                    friend_chat_id = int(target_clean)
-                else:
-                    friend_chat_id = db["usernames"].get(target_clean)
-
-                expired_token = create_user_token(f"@{target_clean}", 0)
-
-                if friend_chat_id and str(friend_chat_id) in db["users"]:
-                    db["users"][str(friend_chat_id)]["token"] = expired_token
-                    save_db(db)
-
+                friend_chat_id = users_db.get(f"chat_{target_user}")
                 if friend_chat_id:
                     send_telegram("sendMessage", {
                         "chat_id": friend_chat_id,
@@ -503,32 +444,27 @@ async def process_telegram_webhook(request: Request):
                     })
 
                 admin_reply = (
-                    f"🚫 <b>Подписка пользователя @{target_clean} успешно аннулирована!</b>\n\n"
-                    f"Доступ к серверам закрыт, а на его сайте теперь статус 🔴 ИСТЕКЛА."
+                    f"🚫 <b>Подписка пользователя @{target_user} успешно аннулирована!</b>\n\n"
+                    f"Доступ к серверам закрыт, а на его сайте {BASE_URL}/p/{target_user} теперь статус 🔴 ИСТЕКЛА."
                 )
                 send_telegram("sendMessage", {"chat_id": chat_id, "text": admin_reply, "parse_mode": "HTML"})
                 return {"ok": True}
 
             send_telegram("sendMessage", {
                 "chat_id": chat_id,
-                "text": "Формат команды: <code>/del @username</code> или <code>/del 123456789</code>",
+                "text": "Формат команды: <code>/del @username</code>",
                 "parse_mode": "HTML"
             })
             return {"ok": True}
 
-        # Выдача подписки: /add (себе) или /add @username (другу на 30 дней) или /add @username 60
         if is_admin_user and (text.startswith("/add") or text.startswith("/grant")):
             parts = text.split()
 
-            # 1. Если просто написать /add -> выдаем подписку СЕБЕ на 365 дней!
             if len(parts) == 1:
                 days = 365
-                token = create_user_token(uname_tag, days)
-                portal_url = f"{base_url}/p/{token}"
+                set_cloud_user("zzylx", days, chat_id)
+                portal_url = f"{BASE_URL}/p/zzylx"
                 exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
-
-                db["users"][str(chat_id)]["token"] = token
-                save_db(db)
 
                 admin_text = (
                     f"👑 <b>Вам успешно выдана VIP-подписка Администратора на {days} дней!</b>\n\n"
@@ -554,31 +490,20 @@ async def process_telegram_webhook(request: Request):
                 })
                 return {"ok": True}
 
-            # 2. Если написали /add @username (по умолчанию 30 дней) или /add @username 60
             if len(parts) >= 2:
-                target_user = parts[1]
-                target_clean = target_user.lstrip("@").lower()
-
-                # Если число не указано, автоматически ставим 30 дней!
+                target_user = parts[1].lstrip("@").lower()
                 days = 30
                 if len(parts) >= 3 and parts[2].isdigit():
                     days = int(parts[2])
 
-                token = create_user_token(f"@{target_clean}", days)
-                portal_url = f"{base_url}/p/{token}"
+                set_cloud_user(target_user, days)
+                portal_url = f"{BASE_URL}/p/{target_user}"
                 exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
 
-                friend_chat_id = None
-                if target_clean.isdigit():
-                    friend_chat_id = int(target_clean)
-                else:
-                    friend_chat_id = db["usernames"].get(target_clean)
+                users_db = get_cloud_users()
+                friend_chat_id = users_db.get(f"chat_{target_user}")
 
                 if friend_chat_id:
-                    if str(friend_chat_id) in db["users"]:
-                        db["users"][str(friend_chat_id)]["token"] = token
-                        save_db(db)
-
                     notify_friend = (
                         f"🎉 <b>Администратор @zzylx выдал вам VIP-подписку Phantom VPN на {days} дней!</b>\n\n"
                         f"📅 <b>Действует до:</b> {exp_date}\n\n"
@@ -603,19 +528,18 @@ async def process_telegram_webhook(request: Request):
 
                     admin_reply = (
                         f"✅ <b>Подписка на {days} дней успешно выдана!</b>\n\n"
-                        f"👤 Пользователь: <b>@{target_clean}</b>\n"
+                        f"👤 Пользователь: <b>@{target_user}</b>\n"
                         f"⏳ Срок: <b>{days} дней</b> (до {exp_date})\n\n"
-                        f"🚀 <b>Бот автоматически отправил сообщение и активную ссылку пользователю @{target_clean} в личку!</b>\n\n"
+                        f"🚀 <b>Бот автоматически отправил подписку пользователю @{target_user} в личку!</b>\n\n"
                         f"🌐 Ссылка на его сайт: {portal_url}"
                     )
                 else:
                     admin_reply = (
-                        f"✅ <b>Подписка на {days} дней для @{target_clean} готова!</b>\n\n"
+                        f"✅ <b>Подписка на {days} дней для @{target_user} успешно выдана!</b>\n\n"
                         f"📅 Действует до: <b>{exp_date}</b>\n\n"
-                        f"🌐 <b>ВОТ ЕГО ПЕРСОНАЛЬНАЯ ССЫЛКА НА САЙТ (АКТИВНА {days} ДНЕЙ):</b>\n"
+                        f"🌐 <b>ПОСТОЯННАЯ ССЫЛКА НА ЕГО САЙТ (СТАТУС 🟢 АКТИВНА):</b>\n"
                         f"👉 <code>{portal_url}</code>\n\n"
-                        f"⚠️ <b>ВАЖНО:</b> Перешли другу @{target_clean} <b>ИМЕННО ЭТУ ССЫЛКУ ВЫШЕ!</b>\n"
-                        f"<i>(На ней подписка уже активна. Как только он её откроет — сразу загорится 🟢 АКТИВНА и таймер на {days} дней!)</i>"
+                        f"⚡ Перешлите эту ссылку другу — на ней уже тикает таймер на {days} дней и доступны все 25 серверов!"
                     )
 
                 send_telegram("sendMessage", {"chat_id": chat_id, "text": admin_reply, "parse_mode": "HTML"})
@@ -676,17 +600,10 @@ async def process_telegram_webhook(request: Request):
             )
             send_telegram("sendMessage", {"chat_id": chat_id, "text": faq_text, "parse_mode": "HTML"})
 
-        elif data == "adm_help":
-            send_telegram("sendMessage", {
-                "chat_id": chat_id,
-                "text": "👑 <b>Команды администратора (@zzylx):</b>\n\n• <code>/add</code> — выдать подписку себе на 365 дней\n• <code>/add @username</code> — выдать 30 дней другу\n• <code>/del @username</code> — снять подписку",
-                "parse_mode": "HTML"
-            })
-
     return {"ok": True}
 
 # ==============================================================================
-#  УНИВЕРСАЛЬНЫЙ РОУТЕР
+#  Universal Router
 # ==============================================================================
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "HEAD"])

@@ -346,6 +346,14 @@ async def process_telegram_webhook(request: Request):
                 ]
             }
             send_telegram("sendMessage", {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "reply_markup": kb})
+
+            # Уведомление Создателю @zzylx
+            admin_id = 7678324008
+            send_telegram("sendMessage", {
+                "chat_id": admin_id,
+                "text": f"💰 <b>НОВАЯ ОПЛАТА ЗВЁЗДАМИ!</b>\n\n👤 Покупатель: {uname_tag} (ID: <code>{chat_id}</code>)\n⭐ Тариф: <b>{days} дней</b>\n🎉 Звёзды зачислены на баланс бота, подписка выдана автоматически!",
+                "parse_mode": "HTML"
+            })
             return {"ok": True}
 
         text = msg.get("text", "").strip()

@@ -6,19 +6,19 @@
   <title>Phantom VPN · Личный Кабинет</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #090a0f;
-      --card-bg: rgba(22, 25, 38, 0.7);
+      --bg: #090a10;
+      --card-bg: rgba(18, 20, 32, 0.75);
       --card-border: rgba(255, 255, 255, 0.08);
-      --primary: #8a2be2;
-      --accent: #00f0ff;
-      --text: #ffffff;
-      --text-muted: #8e95ad;
-      --success: #00ff88;
-      --danger: #ff3366;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
     }
 
     * {
@@ -30,196 +30,212 @@
     body {
       background-color: var(--bg);
       background-image: 
-        radial-gradient(circle at 10% 20%, rgba(138, 43, 226, 0.18) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.14) 0%, transparent 40%);
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.25), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 90%, rgba(6, 182, 212, 0.15), transparent);
       color: var(--text);
-      font-family: 'Inter', sans-serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
+      padding: 24px 16px 48px;
     }
 
     .container {
       width: 100%;
-      max-width: 480px;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .logo-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(138, 43, 226, 0.18);
-      border: 1px solid rgba(138, 43, 226, 0.4);
-      padding: 6px 16px;
-      border-radius: 999px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .title {
-      font-size: 30px;
-      font-weight: 800;
-      background: linear-gradient(135deg, #ffffff 40%, #8e95ad 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      padding: 24px;
-      margin-bottom: 16px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-    }
-
-    .status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--card-border);
-    }
-
-    .user-info {
+      max-width: 520px;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 16px;
     }
 
-    .user-name {
-      font-weight: 700;
-      font-size: 16px;
+    /* Navbar */
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
 
-    .plan-name {
-      font-size: 12px;
-      color: var(--accent);
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 17px;
+      color: #fff;
     }
 
-    .badge-status {
+    .brand-dot {
+      width: 9px;
+      height: 9px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--success);
+    }
+
+    .brand-dot.offline {
+      background: var(--danger);
+      box-shadow: 0 0 12px var(--danger);
+    }
+
+    .nav-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(6, 182, 212, 0.12);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* Main Card */
+    .remna-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .user-profile {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .user-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .plan-tag {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-status {
+      padding: 6px 14px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: 700;
       letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .badge-active {
-      background: rgba(0, 255, 136, 0.12);
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
       color: var(--success);
-      border: 1px solid rgba(0, 255, 136, 0.3);
     }
 
     .badge-expired {
-      background: rgba(255, 51, 102, 0.12);
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
       color: var(--danger);
-      border: 1px solid rgba(255, 51, 102, 0.3);
     }
 
-    .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background-color: currentColor;
-      box-shadow: 0 0 10px currentColor;
+    /* Countdown Grid */
+    .timer-container {
+      background: rgba(10, 11, 20, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
     }
 
-    .countdown-title {
+    .timer-title {
       font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      text-align: center;
+      margin-bottom: 12px;
     }
 
     .timer-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      margin-bottom: 20px;
     }
 
     .timer-box {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 12px;
-      padding: 10px 4px;
-      text-align: center;
+      padding: 12px 6px;
     }
 
     .timer-num {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
       color: #fff;
       display: block;
+      line-height: 1;
     }
 
     .timer-label {
-      font-size: 10px;
+      font-size: 11px;
+      font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
-      margin-top: 2px;
+      margin-top: 6px;
       display: block;
     }
 
-    .sub-box {
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 16px;
+    /* Expired Notice Box */
+    .expired-box {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 12px;
+      align-items: center;
     }
 
-    .sub-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      justify-content: space-between;
+    .expired-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--danger);
     }
 
-    .sub-input {
-      background: transparent;
-      border: none;
-      color: #fff;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      outline: none;
-      width: 100%;
-      word-break: break-all;
-      resize: none;
-      cursor: text;
+    .expired-desc {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
     }
 
+    /* Buttons */
     .btn-group {
       display: flex;
       flex-direction: column;
@@ -231,81 +247,139 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
+      padding: 15px;
+      border-radius: 14px;
       font-size: 15px;
       font-weight: 700;
       text-decoration: none;
       cursor: pointer;
       border: none;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #8a2be2 0%, #4a00e0 100%);
+    .btn-happ {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
       color: #fff;
-      box-shadow: 0 4px 20px rgba(138, 43, 226, 0.4);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
     }
 
-    .btn-primary:hover {
-      opacity: 0.95;
-      transform: translateY(-1px);
+    .btn-happ:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
     }
 
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
+    .btn-renew {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
     }
 
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.14);
+    .btn-renew:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(16, 185, 129, 0.5);
     }
 
-    .qr-card {
+    .btn-copy {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Sub URL Box */
+    .url-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      padding: 20px;
-      text-align: center;
+      gap: 6px;
     }
 
-    #qrcode {
-      padding: 10px;
-      background: #fff;
-      border-radius: 12px;
-      display: inline-block;
-    }
-
-    .qr-text {
-      font-size: 12px;
+    .url-title {
+      font-size: 11px;
       color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
     }
 
-    .perks-list {
+    .url-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #e2e8f0;
+      word-break: break-all;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      cursor: text;
+    }
+
+    /* Server list */
+    .servers-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 20px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .servers-header {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .servers-list {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-top: 14px;
-      font-size: 13px;
-      text-align: left;
-      width: 100%;
+      gap: 10px;
     }
 
-    .perks-list li {
+    .server-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .server-name {
       display: flex;
       align-items: center;
       gap: 8px;
-      color: #d1d5db;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .server-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
     }
 
     .toast {
       position: fixed;
       bottom: 24px;
-      background: rgba(0, 255, 136, 0.95);
+      background: var(--success);
       color: #000;
       font-weight: 700;
       padding: 12px 24px;
@@ -316,6 +390,7 @@
       transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
       pointer-events: none;
       z-index: 9999;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
     }
 
     .toast.show {
@@ -327,94 +402,133 @@
 <body>
 
   <div class="container">
-    <div class="header">
-      <div class="logo-badge">👻 Ghost Protocol · 4K Ready</div>
-      <h1 class="title">Phantom VPN</h1>
-      <p class="subtitle">Персональный личный кабинет подписчика</p>
+    <div class="navbar">
+      <div class="nav-brand">
+        <span class="brand-dot {{ BRAND_DOT_CLASS }}"></span>
+        <span>Phantom VPN</span>
+      </div>
+      <div class="nav-badge">
+        <span>{{ NAV_BADGE_TEXT }}</span>
+      </div>
     </div>
 
-    <div class="card">
-      <div class="status-row">
-        <div class="user-info">
+    <div class="remna-card">
+      <div class="card-header">
+        <div class="user-profile">
           <span class="user-name">{{ USERNAME }}</span>
-          <span class="plan-name">Тариф: VIP Безлимит 24/7</span>
+          <span class="plan-tag">⭐ {{ PLAN_TITLE }}</span>
         </div>
         <div class="badge-status {{ STATUS_CLASS }}">
-          <span class="dot"></span> {{ STATUS_TEXT }}
+          {{ STATUS_TEXT }}
         </div>
       </div>
 
-      <div class="countdown-title">До окончания подписки осталось:</div>
-      <div class="timer-grid">
-        <div class="timer-box">
-          <span class="timer-num" id="d">00</span>
-          <span class="timer-label">Дней</span>
+      <!-- Если подписка активна -->
+      <div id="active-content" style="{{ ACTIVE_DISPLAY }}">
+        <div class="timer-container">
+          <div class="timer-title">⏳ До конца действия подписки осталось:</div>
+          <div class="timer-grid">
+            <div class="timer-box">
+              <span class="timer-num" id="d">00</span>
+              <span class="timer-label">Дней</span>
+            </div>
+            <div class="timer-box">
+              <span class="timer-num" id="h">00</span>
+              <span class="timer-label">Часов</span>
+            </div>
+            <div class="timer-box">
+              <span class="timer-num" id="m">00</span>
+              <span class="timer-label">Минут</span>
+            </div>
+            <div class="timer-box">
+              <span class="timer-num" id="s">00</span>
+              <span class="timer-label">Секунд</span>
+            </div>
+          </div>
         </div>
-        <div class="timer-box">
-          <span class="timer-num" id="h">00</span>
-          <span class="timer-label">Часов</span>
+
+        <div class="btn-group" style="margin-top: 16px;">
+          <a href="happ://add-sub?url={{ SUB_URL_ENCODED }}" class="btn btn-happ">
+            🚀 Добавить в Happ VPN в 1 клик
+          </a>
+          <button onclick="copySub()" class="btn btn-copy">
+            📋 Скопировать ссылку подписки
+          </button>
         </div>
-        <div class="timer-box">
-          <span class="timer-num" id="m">00</span>
-          <span class="timer-label">Минут</span>
-        </div>
-        <div class="timer-box">
-          <span class="timer-num" id="s">00</span>
-          <span class="timer-label">Секунд</span>
+
+        <div class="url-box" style="margin-top: 14px;">
+          <div class="url-title">
+            <span>URL вашей подписки:</span>
+            <span style="color: var(--primary); cursor: pointer;" onclick="copySub()">Скопировать</span>
+          </div>
+          <textarea id="sub-url-input" class="url-text" rows="2" readonly>{{ SUB_URL }}</textarea>
         </div>
       </div>
 
-      <div class="sub-box">
-        <div class="sub-label">
-          <span>Твоя ссылка для Happ VPN:</span>
-          <span id="click-hint" style="color: var(--accent); cursor: pointer;" onclick="copySub()">Скопировать</span>
+      <!-- Если подписка истекла -->
+      <div id="expired-content" style="{{ EXPIRED_DISPLAY }}">
+        <div class="expired-box">
+          <div class="expired-title">🔴 Подписка истекла или не активна</div>
+          <p class="expired-desc">
+            Все сервера временно отключены. Чтобы возобновить безлимитный доступ к 25 скоростным серверам и 4K, продлите подписку в нашем Telegram-боте.
+          </p>
+          <a href="{{ BOT_URL }}" target="_blank" class="btn btn-renew" style="width: 100%;">
+            ⭐ Пополнить / Продлить в Telegram боте
+          </a>
         </div>
-        <textarea id="sub-url-input" class="sub-input" rows="2" readonly>{{ SUB_URL }}</textarea>
-      </div>
-
-      <div class="btn-group">
-        <a href="happ://add-sub?url={{ SUB_URL_ENCODED }}" class="btn btn-primary">
-          🚀 Добавить в Happ VPN в 1 клик
-        </a>
-        <button onclick="copySub()" class="btn btn-secondary">
-          📋 Скопировать ссылку подписки
-        </button>
       </div>
     </div>
 
-    <!-- QR Code Card -->
-    <div class="card qr-card">
-      <div id="qrcode"></div>
-      <div class="qr-text">Отсканируй камерой или в Happ VPN для мгновенного импорта</div>
-
-      <ul class="perks-list">
-        <li>📱 <b>18 LTE серверов:</b> Обход мобильных глушилок операторов</li>
-        <li>⚡ <b>7 Wi-Fi 4K серверов:</b> YouTube 4K, Gemini, Discord, Instagram</li>
-        <li>🔒 <b>Ghost Reality Protocol:</b> Полная маскировка под обычные сайты</li>
+    <!-- Список серверов (ОТОБРАЖАЕТСЯ ТОЛЬКО ПРИ АКТИВНОЙ ПОДПИСКЕ) -->
+    <div class="servers-card" style="{{ SERVERS_DISPLAY }}">
+      <div class="servers-header">
+        <span>🌐 Доступные сервера (25 нод)</span>
+        <span style="font-size: 12px; color: var(--accent);">VLESS Reality</span>
+      </div>
+      <ul class="servers-list">
+        <li class="server-item">
+          <div class="server-name">
+            <span>📱 18 Серверов LTE Anti-DPI</span>
+          </div>
+          <span class="server-badge">Обход глушилок</span>
+        </li>
+        <li class="server-item">
+          <div class="server-name">
+            <span>🇳🇱 Нидерланды (Амстердам 4K)</span>
+          </div>
+          <span class="server-badge">1 Гбит/с</span>
+        </li>
+        <li class="server-item">
+          <div class="server-name">
+            <span>🇩🇪 Германия (Франкфурт 4K)</span>
+          </div>
+          <span class="server-badge">1 Гбит/с</span>
+        </li>
+        <li class="server-item">
+          <div class="server-name">
+            <span>🇸🇪 Швеция (Стокгольм)</span>
+          </div>
+          <span class="server-badge">1 Гбит/с</span>
+        </li>
+        <li class="server-item">
+          <div class="server-name">
+            <span>🇦🇹 Австрия (Вена 4K)</span>
+          </div>
+          <span class="server-badge">1 Гбит/с</span>
+        </li>
       </ul>
     </div>
   </div>
 
-  <div id="toast" class="toast">✅ Ссылка скопирована в буфер!</div>
+  <div id="toast" class="toast">✅ Ссылка скопирована в буфер обмена!</div>
 
   <script>
     const expireTimestamp = {{ EXPIRE_TIMESTAMP }};
     const subUrl = "{{ SUB_URL }}";
+    const isActive = {{ IS_ACTIVE_JS }};
 
-    // Генерация QR Кода
-    try {
-      new QRCode(document.getElementById("qrcode"), {
-        text: subUrl,
-        width: 140,
-        height: 140,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.M
-      });
-    } catch(e) {}
-
-    // Таймер обратного отсчета в реальном времени
     function updateCountdown() {
+      if (!isActive) return;
       const now = Math.floor(Date.now() / 1000);
       let diff = expireTimestamp - now;
 
@@ -423,6 +537,11 @@
         document.getElementById('h').innerText = "00";
         document.getElementById('m').innerText = "00";
         document.getElementById('s').innerText = "00";
+        // При окончании времени скрываем контент и сервера
+        document.getElementById('active-content').style.display = 'none';
+        document.getElementById('expired-content').style.display = 'flex';
+        const sc = document.querySelector('.servers-card');
+        if (sc) sc.style.display = 'none';
         return;
       }
 
@@ -439,12 +558,29 @@
       document.getElementById('s').innerText = String(seconds).padStart(2, '0');
     }
 
-    setInterval(updateCountdown, 1000);
-    updateCountdown();
+    
+    try {
+      const currentUname = '{{ USERNAME }}';
+      if (isActive && currentUname && currentUname !== 'Не авторизован') {
+        const cleanName = currentUname.replace('@', '').toLowerCase();
+        localStorage.setItem('phantom_last_user', cleanName);
+      }
+      if (window.location.pathname === '/' || window.location.pathname === '') {
+        const saved = localStorage.getItem('phantom_last_user');
+        if (saved) {
+          window.location.replace('/p/' + saved);
+        }
+      }
+    } catch(e) {}
 
-    // Копирование в буфер
+    if (isActive) {
+      setInterval(updateCountdown, 1000);
+      updateCountdown();
+    }
+
     function copySub() {
       const input = document.getElementById('sub-url-input');
+      if (!input) return;
       input.select();
       navigator.clipboard.writeText(subUrl).then(() => {
         showToast();

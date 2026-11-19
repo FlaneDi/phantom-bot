@@ -7,7 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
       --bg: #090a10;
@@ -50,7 +49,7 @@
       gap: 16px;
     }
 
-    /* Remnawave / H1Cloud Navbar */
+    /* Navbar */
     .navbar {
       display: flex;
       align-items: center;
@@ -80,6 +79,11 @@
       box-shadow: 0 0 12px var(--success);
     }
 
+    .brand-dot.offline {
+      background: var(--danger);
+      box-shadow: 0 0 12px var(--danger);
+    }
+
     .nav-badge {
       display: inline-flex;
       align-items: center;
@@ -93,7 +97,7 @@
       border-radius: 999px;
     }
 
-    /* Main Subscription Card (Remnawave Signature) */
+    /* Main Card */
     .remna-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -157,7 +161,7 @@
       color: var(--danger);
     }
 
-    /* Live Countdown Grid */
+    /* Countdown Grid */
     .timer-container {
       background: rgba(10, 11, 20, 0.6);
       border: 1px solid var(--card-border);
@@ -206,35 +210,32 @@
       display: block;
     }
 
-    /* Stats row */
-    .metrics-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .metric-box {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 14px;
-      padding: 14px;
+    /* Expired Notice Box */
+    .expired-box {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 12px;
+      align-items: center;
     }
 
-    .metric-label {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .metric-val {
-      font-size: 15px;
+    .expired-title {
+      font-size: 16px;
       font-weight: 700;
-      color: #fff;
+      color: var(--danger);
     }
 
-    /* Action Buttons (Remnawave Style) */
+    .expired-desc {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    /* Buttons */
     .btn-group {
       display: flex;
       flex-direction: column;
@@ -267,6 +268,17 @@
       box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
     }
 
+    .btn-renew {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-renew:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(16, 185, 129, 0.5);
+    }
+
     .btn-copy {
       background: rgba(255, 255, 255, 0.06);
       color: #fff;
@@ -278,7 +290,7 @@
       border-color: rgba(255, 255, 255, 0.2);
     }
 
-    /* Sub URL Preview Box */
+    /* Sub URL Box */
     .url-box {
       background: rgba(0, 0, 0, 0.4);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -308,36 +320,7 @@
       cursor: text;
     }
 
-    /* QR Code Drawer */
-    .qr-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-      text-align: center;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-
-    #qrcode {
-      padding: 12px;
-      background: #fff;
-      border-radius: 14px;
-      display: inline-block;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    .qr-desc {
-      font-size: 13px;
-      color: var(--text-muted);
-      max-width: 320px;
-    }
-
-    /* Server perks / Nodes fleet */
+    /* Server list */
     .servers-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -393,7 +376,6 @@
       border: 1px solid rgba(99, 102, 241, 0.3);
     }
 
-    /* Toast Notification */
     .toast {
       position: fixed;
       bottom: 24px;
@@ -420,94 +402,87 @@
 <body>
 
   <div class="container">
-    <!-- Navbar (H1Cloud / Remnawave style) -->
     <div class="navbar">
       <div class="nav-brand">
-        <span class="brand-dot"></span>
+        <span class="brand-dot {{ BRAND_DOT_CLASS }}"></span>
         <span>Phantom VPN</span>
       </div>
       <div class="nav-badge">
-        <span>⚡ 25 Нод Онлайн</span>
+        <span>{{ NAV_BADGE_TEXT }}</span>
       </div>
     </div>
 
-    <!-- Main Subscription Hero Card -->
     <div class="remna-card">
       <div class="card-header">
         <div class="user-profile">
           <span class="user-name">{{ USERNAME }}</span>
-          <span class="plan-tag">⭐ VIP Премиум Тариф</span>
+          <span class="plan-tag">⭐ {{ PLAN_TITLE }}</span>
         </div>
         <div class="badge-status {{ STATUS_CLASS }}">
           {{ STATUS_TEXT }}
         </div>
       </div>
 
-      <!-- Real-Time Countdown Timer -->
-      <div class="timer-container">
-        <div class="timer-title">⏳ До конца действия подписки осталось:</div>
-        <div class="timer-grid">
-          <div class="timer-box">
-            <span class="timer-num" id="d">00</span>
-            <span class="timer-label">Дней</span>
+      <!-- Если подписка активна -->
+      <div id="active-content" style="{{ ACTIVE_DISPLAY }}">
+        <div class="timer-container">
+          <div class="timer-title">⏳ До конца действия подписки осталось:</div>
+          <div class="timer-grid">
+            <div class="timer-box">
+              <span class="timer-num" id="d">00</span>
+              <span class="timer-label">Дней</span>
+            </div>
+            <div class="timer-box">
+              <span class="timer-num" id="h">00</span>
+              <span class="timer-label">Часов</span>
+            </div>
+            <div class="timer-box">
+              <span class="timer-num" id="m">00</span>
+              <span class="timer-label">Минут</span>
+            </div>
+            <div class="timer-box">
+              <span class="timer-num" id="s">00</span>
+              <span class="timer-label">Секунд</span>
+            </div>
           </div>
-          <div class="timer-box">
-            <span class="timer-num" id="h">00</span>
-            <span class="timer-label">Часов</span>
+        </div>
+
+        <div class="btn-group" style="margin-top: 16px;">
+          <a href="happ://add-sub?url={{ SUB_URL_ENCODED }}" class="btn btn-happ">
+            🚀 Добавить в Happ VPN в 1 клик
+          </a>
+          <button onclick="copySub()" class="btn btn-copy">
+            📋 Скопировать ссылку подписки
+          </button>
+        </div>
+
+        <div class="url-box" style="margin-top: 14px;">
+          <div class="url-title">
+            <span>URL вашей подписки:</span>
+            <span style="color: var(--primary); cursor: pointer;" onclick="copySub()">Скопировать</span>
           </div>
-          <div class="timer-box">
-            <span class="timer-num" id="m">00</span>
-            <span class="timer-label">Минут</span>
-          </div>
-          <div class="timer-box">
-            <span class="timer-num" id="s">00</span>
-            <span class="timer-label">Секунд</span>
-          </div>
+          <textarea id="sub-url-input" class="url-text" rows="2" readonly>{{ SUB_URL }}</textarea>
         </div>
       </div>
 
-      <!-- Metrics -->
-      <div class="metrics-row">
-        <div class="metric-box">
-          <span class="metric-label">Лимит трафика</span>
-          <span class="metric-val">♾️ Безлимит</span>
+      <!-- Если подписка истекла -->
+      <div id="expired-content" style="{{ EXPIRED_DISPLAY }}">
+        <div class="expired-box">
+          <div class="expired-title">🔴 Подписка истекла или не активна</div>
+          <p class="expired-desc">
+            Все сервера временно отключены. Чтобы возобновить безлимитный доступ к 25 скоростным серверам и 4K, продлите подписку в нашем Telegram-боте.
+          </p>
+          <a href="{{ BOT_URL }}" target="_blank" class="btn btn-renew" style="width: 100%;">
+            ⭐ Пополнить / Продлить в Telegram боте
+          </a>
         </div>
-        <div class="metric-box">
-          <span class="metric-label">Скорость сети</span>
-          <span class="metric-val">⚡ До 1 Гбит/с</span>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="btn-group">
-        <a href="happ://add-sub?url={{ SUB_URL_ENCODED }}" class="btn btn-happ">
-          🚀 Добавить в Happ VPN в 1 клик
-        </a>
-        <button onclick="copySub()" class="btn btn-copy">
-          📋 Скопировать ссылку подписки
-        </button>
-      </div>
-
-      <!-- Sub URL Box -->
-      <div class="url-box">
-        <div class="url-title">
-          <span>URL вашей подписки:</span>
-          <span style="color: var(--primary); cursor: pointer;" onclick="copySub()">Скопировать</span>
-        </div>
-        <textarea id="sub-url-input" class="url-text" rows="2" readonly>{{ SUB_URL }}</textarea>
       </div>
     </div>
 
-    <!-- QR Code Section -->
-    <div class="qr-card">
-      <div id="qrcode"></div>
-      <p class="qr-desc">Отсканируйте камерой смартфона или в приложении Happ VPN для мгновенного импорта</p>
-    </div>
-
-    <!-- Servers Fleet List -->
-    <div class="servers-card">
+    <!-- Список серверов (ОТОБРАЖАЕТСЯ ТОЛЬКО ПРИ АКТИВНОЙ ПОДПИСКЕ) -->
+    <div class="servers-card" style="{{ SERVERS_DISPLAY }}">
       <div class="servers-header">
-        <span>🌐 Доступные локации серверов</span>
+        <span>🌐 Доступные сервера (25 нод)</span>
         <span style="font-size: 12px; color: var(--accent);">VLESS Reality</span>
       </div>
       <ul class="servers-list">
@@ -515,7 +490,7 @@
           <div class="server-name">
             <span>📱 18 Серверов LTE Anti-DPI</span>
           </div>
-          <span class="server-badge">Для телефонов</span>
+          <span class="server-badge">Обход глушилок</span>
         </li>
         <li class="server-item">
           <div class="server-name">
@@ -550,19 +525,10 @@
   <script>
     const expireTimestamp = {{ EXPIRE_TIMESTAMP }};
     const subUrl = "{{ SUB_URL }}";
-
-    try {
-      new QRCode(document.getElementById("qrcode"), {
-        text: subUrl,
-        width: 140,
-        height: 140,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.M
-      });
-    } catch(e) {}
+    const isActive = {{ IS_ACTIVE_JS }};
 
     function updateCountdown() {
+      if (!isActive) return;
       const now = Math.floor(Date.now() / 1000);
       let diff = expireTimestamp - now;
 
@@ -571,6 +537,11 @@
         document.getElementById('h').innerText = "00";
         document.getElementById('m').innerText = "00";
         document.getElementById('s').innerText = "00";
+        // При окончании времени скрываем контент и сервера
+        document.getElementById('active-content').style.display = 'none';
+        document.getElementById('expired-content').style.display = 'flex';
+        const sc = document.querySelector('.servers-card');
+        if (sc) sc.style.display = 'none';
         return;
       }
 
@@ -587,11 +558,14 @@
       document.getElementById('s').innerText = String(seconds).padStart(2, '0');
     }
 
-    setInterval(updateCountdown, 1000);
-    updateCountdown();
+    if (isActive) {
+      setInterval(updateCountdown, 1000);
+      updateCountdown();
+    }
 
     function copySub() {
       const input = document.getElementById('sub-url-input');
+      if (!input) return;
       input.select();
       navigator.clipboard.writeText(subUrl).then(() => {
         showToast();

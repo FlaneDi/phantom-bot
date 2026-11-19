@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/p/(.*)", "destination": "/api/index.py?token=$1" },
+    { "source": "/sub", "destination": "/api/index.py?action=sub" },
     { "source": "/(.*)", "destination": "/api/index.py" }
   ]
 }

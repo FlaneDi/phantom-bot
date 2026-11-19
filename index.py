@@ -24,6 +24,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "phantom_vpn_ultra_secret_2026_key")
 
 DEFAULT_SUB_URL = "https://gist.githubusercontent.com/FlaneDi/274759663340922adeb930c66a2e37ba/raw/phantom.txt#👻%20Phantom%20VPN"
 UPSTREAM_SUB = "https://alius-sub.com/sub/6M8yGU5Pp_0M5Egr"
+BOT_TELEGRAM_LINK = "https://t.me/PhantomVPN_bot"
 
 PRICE_1_MONTH = 100
 PRICE_3_MONTHS = 250
@@ -31,7 +32,7 @@ PRICE_3_MONTHS = 250
 app = FastAPI()
 
 # ==============================================================================
-#  Криптографические Токены
+#  Криптографические Токены (Надежное сохранение времени и аккаунта)
 # ==============================================================================
 
 def create_user_token(username: str, days: int) -> str:
@@ -43,6 +44,8 @@ def create_user_token(username: str, days: int) -> str:
     return f"{b64}.{sig}"
 
 def decode_user_token(token: str) -> Optional[dict]:
+    if not token:
+        return None
     try:
         parts = token.split('.')
         if len(parts) != 2:
@@ -72,20 +75,49 @@ def render_portal(token: str = "") -> HTMLResponse:
     data = decode_user_token(token) if token else None
     now = int(time.time())
 
+    # Если токен не передан или неверный — не пускаем на чужой аккаунт
     if not data:
-        display_name = "@zzylx" if not token else "Гость"
-        is_active = True
-        exp_ts = now + 30 * 86400  # 30 дней по умолчанию для превью
+        display_name = "Не авторизован"
+        plan_title = "Нет активной подписки"
+        is_active = False
+        exp_ts = now
+        status_class = "badge-expired"
+        status_text = "🔴 НЕ АКТИВНА"
+        active_display = "display: none;"
+        expired_display = "display: flex;"
+        servers_display = "display: none;"
+        brand_dot_class = "offline"
+        nav_badge_text = "Доступ закрыт"
+        sub_url = ""
     else:
         display_name = data.get("u", "Пользователь")
-        exp_ts = int(data.get("exp", now))
-        is_active = exp_ts > now
+        exp_ts = int(data.get("exp", 0))
 
-    status_class = "badge-active" if is_active else "badge-expired"
-    status_text = "🟢 АКТИВНА" if is_active else "🔴 ИСТЕКЛА"
+        # Проверяем реальное истечение времени
+        if now >= exp_ts:
+            plan_title = "Подписка истекла"
+            is_active = False
+            status_class = "badge-expired"
+            status_text = "🔴 ИСТЕКЛА"
+            active_display = "display: none;"
+            expired_display = "display: flex;"
+            servers_display = "display: none;"
+            brand_dot_class = "offline"
+            nav_badge_text = "Подписка истекла"
+            sub_url = ""
+        else:
+            plan_title = "VIP Премиум (Безлимит)"
+            is_active = True
+            status_class = "badge-active"
+            status_text = "🟢 АКТИВНА"
+            active_display = "display: block;"
+            expired_display = "display: none;"
+            servers_display = "display: block;"
+            brand_dot_class = ""
+            nav_badge_text = "⚡ 25 Нод Онлайн"
+            sub_url = DEFAULT_SUB_URL
 
-    sub_url = DEFAULT_SUB_URL
-    sub_url_encoded = urllib.parse.quote(sub_url, safe="")
+    sub_url_encoded = urllib.parse.quote(sub_url, safe="") if sub_url else ""
 
     template_path = os.path.join(os.path.dirname(__file__), "portal.html")
     if not os.path.exists(template_path):
@@ -98,11 +130,19 @@ def render_portal(token: str = "") -> HTMLResponse:
         html = f"<h1>Phantom VPN Portal</h1><p>Пользователь: {display_name}</p><p>Статус: {status_text}</p>"
 
     html = html.replace("{{ USERNAME }}", display_name)
+    html = html.replace("{{ PLAN_TITLE }}", plan_title)
     html = html.replace("{{ STATUS_CLASS }}", status_class)
     html = html.replace("{{ STATUS_TEXT }}", status_text)
     html = html.replace("{{ EXPIRE_TIMESTAMP }}", str(exp_ts))
+    html = html.replace("{{ IS_ACTIVE_JS }}", "true" if is_active else "false")
+    html = html.replace("{{ ACTIVE_DISPLAY }}", active_display)
+    html = html.replace("{{ EXPIRED_DISPLAY }}", expired_display)
+    html = html.replace("{{ SERVERS_DISPLAY }}", servers_display)
+    html = html.replace("{{ BRAND_DOT_CLASS }}", brand_dot_class)
+    html = html.replace("{{ NAV_BADGE_TEXT }}", nav_badge_text)
     html = html.replace("{{ SUB_URL }}", sub_url)
     html = html.replace("{{ SUB_URL_ENCODED }}", sub_url_encoded)
+    html = html.replace("{{ BOT_URL }}", BOT_TELEGRAM_LINK)
 
     return HTMLResponse(content=html)
 
@@ -209,7 +249,7 @@ async def process_telegram_webhook(request: Request):
             text = (
                 "🎉 <b>Оплата успешно принята!</b>\n\n"
                 f"Ваша подписка Phantom VPN активирована на <b>{days} дней</b>.\n\n"
-                "🌐 <b>Твой персональный сайт и личный кабинет (Remnawave):</b>\n"
+                "🌐 <b>Твой персональный сайт и личный кабинет:</b>\n"
                 f"👉 <a href='{portal_url}'>{portal_url}</a>\n"
                 "<i>(На сайте тикает таймер до конца подписки и есть кнопка добавления в 1 клик)</i>\n\n"
                 "🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
@@ -353,7 +393,7 @@ async def process_telegram_webhook(request: Request):
     return {"ok": True}
 
 # ==============================================================================
-#  УНИВЕРСАЛЬНЫЙ РОУТЕР: ВСЕГДА ОТДАЕТ КРАСИВЫЙ САЙТ В СТИЛЕ REMNAWAVE
+#  УНИВЕРСАЛЬНЫЙ РОУТЕР
 # ==============================================================================
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "HEAD"])
@@ -361,26 +401,21 @@ async def universal_handler(full_path: str, request: Request):
     if request.method == "POST":
         return await process_telegram_webhook(request)
 
-    # Собираем все варианты путей
-    raw_url = str(request.url)
-    h_uri = request.headers.get("x-forwarded-uri", "")
-    h_match = request.headers.get("x-matched-path", "")
-    h_invoke = request.headers.get("x-invoke-path", "")
-    combined = f"{raw_url} {h_uri} {h_match} {h_invoke} {full_path}"
-
-    if "/sub" in combined and "/p/" not in combined:
+    # Проверка sub
+    if request.query_params.get("action") == "sub" or "/sub" in full_path:
         return render_sub()
 
-    # Извлекаем токен пользователя
-    token = ""
-    if "/p/" in combined:
-        for chunk in [h_uri, h_invoke, raw_url, full_path]:
-            if "/p/" in chunk:
-                token = chunk.split("/p/")[-1].split("?")[0].split("/")[0].strip()
+    # Токен из параметров или пути
+    token = request.query_params.get("token", "")
+    if not token and "/p/" in full_path:
+        token = full_path.split("/p/")[-1].split("?")[0].strip("/")
+
+    if not token:
+        # Проверяем заголовки Vercel
+        for h in ["x-forwarded-uri", "x-invoke-path"]:
+            val = request.headers.get(h, "")
+            if "/p/" in val:
+                token = val.split("/p/")[-1].split("?")[0].strip("/")
                 break
 
-    if not token and request.query_params.get("token"):
-        token = request.query_params.get("token", "")
-
-    # Рендерим полноценный личный кабинет Remnawave / H1Cloud
     return render_portal(token)

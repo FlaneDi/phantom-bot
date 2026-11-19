@@ -24,7 +24,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "phantom_vpn_ultra_secret_2026_key")
 
 DEFAULT_SUB_URL = "https://gist.githubusercontent.com/FlaneDi/274759663340922adeb930c66a2e37ba/raw/phantom.txt#👻%20Phantom%20VPN"
 UPSTREAM_SUB = "https://alius-sub.com/sub/6M8yGU5Pp_0M5Egr"
-BOT_TELEGRAM_LINK = "https://t.me/PhantomVPN_bot"
+BOT_TELEGRAM_LINK = "https://t.me/phantomvpn_b_bot"
 
 PRICE_1_MONTH = 100
 PRICE_3_MONTHS = 250
@@ -263,7 +263,7 @@ async def process_telegram_webhook(request: Request):
         if is_admin_user:
             db["admin_chat_id"] = chat_id
 
-        # Сохраняем пользователя
+        # Сохраняем пользователя в реестр
         if uname_clean:
             db["usernames"][uname_clean] = chat_id
         db["users"][str(chat_id)] = {
@@ -304,13 +304,43 @@ async def process_telegram_webhook(request: Request):
 
         # Команда /start
         if text.startswith("/start"):
-            # Уведомление админу о новом пользователе
-            if not is_admin_user and db.get("admin_chat_id"):
+            # Если админ @zzylx зашел в бота — у него ВСЕГДА активна вечная админ-подписка!
+            if is_admin_user:
+                token = create_user_token(uname_tag, 365)
+                db["users"][str(chat_id)]["token"] = token
+                save_db(db)
+                portal_url = f"{base_url}/p/{token}"
+
+                welcome = (
+                    "👑 <b>Добро пожаловать, Создатель (@zzylx)!</b>\n\n"
+                    "🟢 <b>Ваш статус:</b> АДМИНИСТРАТОР (VIP 365 дней)\n\n"
+                    f"🌐 <b>Твой Личный Кабинет:</b> <a href='{portal_url}'>Открыть сайт</a>\n\n"
+                    "⚡ <b>Как управлять подписками:</b>\n"
+                    "• <code>/add</code> — мгновенно обновить подписку себе\n"
+                    "• <code>/add @друг</code> — выдать 30 дней другу (или <code>/add @друг 60</code>)\n"
+                    "• <code>/del @друг</code> — снять подписку у пользователя"
+                )
+                buttons = [
+                    [{"text": "🚀 Добавить в Happ VPN в 1 клик", "url": f"happ://add-sub?url={urllib.parse.quote(DEFAULT_SUB_URL)}"}],
+                    [{"text": "🌐 Мой Личный Кабинет (Сайт)", "url": portal_url}],
+                    [{"text": "⭐ Меню тарифов", "callback_data": "buy_menu"}],
+                    [{"text": "💬 Помощь и FAQ", "callback_data": "faq"}]
+                ]
+                send_telegram("sendMessage", {
+                    "chat_id": chat_id,
+                    "text": welcome,
+                    "parse_mode": "HTML",
+                    "reply_markup": {"inline_keyboard": buttons}
+                })
+                return {"ok": True}
+
+            # Для обычных пользователей:
+            if db.get("admin_chat_id"):
                 admin_alert = (
                     f"🔔 <b>Новый пользователь запустил бота!</b>\n\n"
                     f"👤 Ник: <b>@{username}</b> ({from_user.get('first_name', '')})\n"
                     f"🆔 Telegram ID: <code>{chat_id}</code>\n\n"
-                    f"• Выдать 30 дней: <code>/add_{chat_id}_30</code>\n"
+                    f"• Выдать 30 дней в 1 клик: <code>/add_{chat_id}_30</code>\n"
                     f"• Снять доступ: <code>/del_{chat_id}</code>"
                 )
                 send_telegram("sendMessage", {
@@ -345,10 +375,9 @@ async def process_telegram_webhook(request: Request):
             else:
                 token = create_user_token(uname_tag, 0)
                 portal_url = f"{base_url}/p/{token}"
-                admin_note = " [👑 АДМИНИСТРАТОР]" if is_admin_user else ""
 
                 welcome = (
-                    f"👻 <b>Добро пожаловать в Phantom VPN!</b>{admin_note}\n\n"
+                    "👻 <b>Добро пожаловать в Phantom VPN!</b>\n\n"
                     "⚡ <b>Ghost Protocol:</b> Сервера для 4K без лагов и обхода любых мобильных глушилок операторов.\n\n"
                     "⭐ <b>Доступно 25 серверов:</b>\n"
                     "• 18 LTE серверов (обход глушилок мобильного интернета)\n"
@@ -365,9 +394,6 @@ async def process_telegram_webhook(request: Request):
                         {"text": "💬 Помощь и FAQ", "callback_data": "faq"}
                     ]
                 ]
-
-            if is_admin_user:
-                buttons.append([{"text": "👑 Админ: /add @юзер 30 | /del @юзер", "callback_data": "adm_help"}])
 
             send_telegram("sendMessage", {
                 "chat_id": chat_id,
@@ -423,7 +449,7 @@ async def process_telegram_webhook(request: Request):
                 except Exception as e:
                     print("Error in /add_id:", e)
 
-        # 1-Клик снятие подписки: /del_123456789
+        # 1-Клик снятие: /del_123456789
         if is_admin_user and text.startswith("/del_"):
             parts = text.split("_")
             if len(parts) >= 2:
@@ -450,7 +476,7 @@ async def process_telegram_webhook(request: Request):
                 except Exception as e:
                     print("Error in /del_id:", e)
 
-        # Снятие подписки: /del @username или /del 123456789 или /remove @username
+        # Снятие подписки: /del @username или /del 123456789
         if is_admin_user and (text.startswith("/del") or text.startswith("/remove") or text.startswith("/revoke")):
             parts = text.split()
             if len(parts) >= 2:
@@ -490,79 +516,110 @@ async def process_telegram_webhook(request: Request):
             })
             return {"ok": True}
 
-        # Выдача подписки: /add @username 30 или /add 123456789 30
+        # Выдача подписки: /add (себе) или /add @username (другу на 30 дней) или /add @username 60
         if is_admin_user and (text.startswith("/add") or text.startswith("/grant")):
             parts = text.split()
-            if len(parts) >= 3:
+
+            # 1. Если просто написать /add -> выдаем подписку СЕБЕ на 365 дней!
+            if len(parts) == 1:
+                days = 365
+                token = create_user_token(uname_tag, days)
+                portal_url = f"{base_url}/p/{token}"
+                exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
+
+                db["users"][str(chat_id)]["token"] = token
+                save_db(db)
+
+                admin_text = (
+                    f"👑 <b>Вам успешно выдана VIP-подписка Администратора на {days} дней!</b>\n\n"
+                    f"📅 <b>Действует до:</b> {exp_date}\n\n"
+                    f"🌐 <b>Твой Личный Кабинет (сайт):</b>\n"
+                    f"👉 <a href='{portal_url}'>{portal_url}</a>\n\n"
+                    f"🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
+                    f"<code>{DEFAULT_SUB_URL}</code>\n\n"
+                    f"💡 <i>Чтобы выдать другу подписку, просто напиши:</i>\n"
+                    f"<code>/add @друг</code>"
+                )
+                kb = {
+                    "inline_keyboard": [
+                        [{"text": "🚀 Добавить в Happ VPN в 1 клик", "url": f"happ://add-sub?url={urllib.parse.quote(DEFAULT_SUB_URL)}"}],
+                        [{"text": "🌐 Открыть Личный Кабинет", "url": portal_url}]
+                    ]
+                }
+                send_telegram("sendMessage", {
+                    "chat_id": chat_id,
+                    "text": admin_text,
+                    "parse_mode": "HTML",
+                    "reply_markup": kb
+                })
+                return {"ok": True}
+
+            # 2. Если написали /add @username (по умолчанию 30 дней) или /add @username 60
+            if len(parts) >= 2:
                 target_user = parts[1]
                 target_clean = target_user.lstrip("@").lower()
-                try:
+
+                # Если число не указано, автоматически ставим 30 дней!
+                days = 30
+                if len(parts) >= 3 and parts[2].isdigit():
                     days = int(parts[2])
-                    token = create_user_token(f"@{target_clean}", days)
-                    portal_url = f"{base_url}/p/{token}"
-                    exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
 
-                    friend_chat_id = None
-                    if target_clean.isdigit():
-                        friend_chat_id = int(target_clean)
-                    else:
-                        friend_chat_id = db["usernames"].get(target_clean)
+                token = create_user_token(f"@{target_clean}", days)
+                portal_url = f"{base_url}/p/{token}"
+                exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
 
-                    if friend_chat_id:
-                        if str(friend_chat_id) in db["users"]:
-                            db["users"][str(friend_chat_id)]["token"] = token
-                            save_db(db)
+                friend_chat_id = None
+                if target_clean.isdigit():
+                    friend_chat_id = int(target_clean)
+                else:
+                    friend_chat_id = db["usernames"].get(target_clean)
 
-                        notify_friend = (
-                            f"🎉 <b>Администратор @zzylx выдал вам VIP-подписку Phantom VPN на {days} дней!</b>\n\n"
-                            f"📅 <b>Действует до:</b> {exp_date}\n\n"
-                            f"🌐 <b>Твой персональный сайт и личный кабинет:</b>\n"
-                            f"👉 <a href='{portal_url}'>{portal_url}</a>\n"
-                            f"<i>(На сайте тикает таймер до конца подписки и есть кнопка добавления в 1 клик)</i>\n\n"
-                            f"🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
-                            f"<code>{DEFAULT_SUB_URL}</code>"
-                        )
-                        kb_friend = {
-                            "inline_keyboard": [
-                                [{"text": "🚀 Добавить в Happ VPN в 1 клик", "url": f"happ://add-sub?url={urllib.parse.quote(DEFAULT_SUB_URL)}"}],
-                                [{"text": "🌐 Открыть Личный Кабинет", "url": portal_url}]
-                            ]
-                        }
-                        send_telegram("sendMessage", {
-                            "chat_id": friend_chat_id,
-                            "text": notify_friend,
-                            "parse_mode": "HTML",
-                            "reply_markup": kb_friend
-                        })
+                if friend_chat_id:
+                    if str(friend_chat_id) in db["users"]:
+                        db["users"][str(friend_chat_id)]["token"] = token
+                        save_db(db)
 
-                        admin_reply = (
-                            f"✅ <b>Подписка успешно выдана!</b>\n\n"
-                            f"👤 Пользователь: <b>@{target_clean}</b>\n"
-                            f"⏳ Срок: <b>{days} дней</b> (до {exp_date})\n\n"
-                            f"🚀 <b>Бот автоматически отправил сообщение и активную ссылку пользователю @{target_clean} в личку!</b>\n\n"
-                            f"🌐 Ссылка на его сайт: {portal_url}"
-                        )
-                    else:
-                        admin_reply = (
-                            f"✅ <b>Подписка на {days} дней для @{target_clean} создана!</b>\n\n"
-                            f"📅 Действует до: <b>{exp_date}</b>\n\n"
-                            f"🌐 <b>ВОТ ЕГО ПЕРСОНАЛЬНАЯ ССЫЛКА НА САЙТ (АКТИВНА 30 ДНЕЙ):</b>\n"
-                            f"👉 <code>{portal_url}</code>\n\n"
-                            f"⚠️ <b>ВАЖНО:</b> Перешли другу @{target_clean} <b>ИМЕННО ЭТУ ССЫЛКУ ВЫШЕ!</b>\n"
-                            f"<i>(На старой ссылке из /start было 0 дней. Как только он откроет ссылку выше — у него сразу загорится 🟢 АКТИВНА и таймер на 30 дней!)</i>"
-                        )
+                    notify_friend = (
+                        f"🎉 <b>Администратор @zzylx выдал вам VIP-подписку Phantom VPN на {days} дней!</b>\n\n"
+                        f"📅 <b>Действует до:</b> {exp_date}\n\n"
+                        f"🌐 <b>Твой персональный сайт и личный кабинет:</b>\n"
+                        f"👉 <a href='{portal_url}'>{portal_url}</a>\n"
+                        f"<i>(На сайте тикает таймер до конца подписки и есть кнопка добавления в 1 клик)</i>\n\n"
+                        f"🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
+                        f"<code>{DEFAULT_SUB_URL}</code>"
+                    )
+                    kb_friend = {
+                        "inline_keyboard": [
+                            [{"text": "🚀 Добавить в Happ VPN в 1 клик", "url": f"happ://add-sub?url={urllib.parse.quote(DEFAULT_SUB_URL)}"}],
+                            [{"text": "🌐 Открыть Личный Кабинет", "url": portal_url}]
+                        ]
+                    }
+                    send_telegram("sendMessage", {
+                        "chat_id": friend_chat_id,
+                        "text": notify_friend,
+                        "parse_mode": "HTML",
+                        "reply_markup": kb_friend
+                    })
 
-                    send_telegram("sendMessage", {"chat_id": chat_id, "text": admin_reply, "parse_mode": "HTML"})
-                    return {"ok": True}
-                except ValueError:
-                    pass
+                    admin_reply = (
+                        f"✅ <b>Подписка на {days} дней успешно выдана!</b>\n\n"
+                        f"👤 Пользователь: <b>@{target_clean}</b>\n"
+                        f"⏳ Срок: <b>{days} дней</b> (до {exp_date})\n\n"
+                        f"🚀 <b>Бот автоматически отправил сообщение и активную ссылку пользователю @{target_clean} в личку!</b>\n\n"
+                        f"🌐 Ссылка на его сайт: {portal_url}"
+                    )
+                else:
+                    admin_reply = (
+                        f"✅ <b>Подписка на {days} дней для @{target_clean} готова!</b>\n\n"
+                        f"📅 Действует до: <b>{exp_date}</b>\n\n"
+                        f"🌐 <b>ВОТ ЕГО ПЕРСОНАЛЬНАЯ ССЫЛКА НА САЙТ (АКТИВНА {days} ДНЕЙ):</b>\n"
+                        f"👉 <code>{portal_url}</code>\n\n"
+                        f"⚠️ <b>ВАЖНО:</b> Перешли другу @{target_clean} <b>ИМЕННО ЭТУ ССЫЛКУ ВЫШЕ!</b>\n"
+                        f"<i>(На ней подписка уже активна. Как только он её откроет — сразу загорится 🟢 АКТИВНА и таймер на {days} дней!)</i>"
+                    )
 
-            send_telegram("sendMessage", {
-                "chat_id": chat_id,
-                "text": "Формат команды: <code>/add @username 30</code>",
-                "parse_mode": "HTML"
-            })
-            return {"ok": True}
+                send_telegram("sendMessage", {"chat_id": chat_id, "text": admin_reply, "parse_mode": "HTML"})
+                return {"ok": True}
 
     if "callback_query" in body:
         cb = body["callback_query"]
@@ -622,7 +679,7 @@ async def process_telegram_webhook(request: Request):
         elif data == "adm_help":
             send_telegram("sendMessage", {
                 "chat_id": chat_id,
-                "text": "👑 <b>Команды администратора (@zzylx):</b>\n\n• Выдать подписку: <code>/add @username 30</code>\n• Снять подписку: <code>/del @username</code> (или <code>/del 123456789</code>)",
+                "text": "👑 <b>Команды администратора (@zzylx):</b>\n\n• <code>/add</code> — выдать подписку себе на 365 дней\n• <code>/add @username</code> — выдать 30 дней другу\n• <code>/del @username</code> — снять подписку",
                 "parse_mode": "HTML"
             })
 

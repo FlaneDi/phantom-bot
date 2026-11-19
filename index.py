@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 
 # ==============================================================================
-#  👻 Phantom VPN — Vercel Serverless Bot + Web Portal + Admin Panel (@zzylx)
+#  👻 Phantom VPN — Remnawave / H1Cloud Style Serverless Portal + Bot (@zzylx)
 # ==============================================================================
 
 BOT_TOKEN = "9017418443:AAGF0_2yQOBIg6wO5-GGa7WvzGvVTJTBClo"
@@ -68,21 +68,21 @@ def send_telegram(method: str, payload: dict):
         print(f"Telegram API Error ({method}):", e)
         return None
 
-def render_portal(token: str) -> HTMLResponse:
-    data = decode_user_token(token)
+def render_portal(token: str = "") -> HTMLResponse:
+    data = decode_user_token(token) if token else None
     now = int(time.time())
 
     if not data:
-        display_name = "Гость"
-        is_active = False
-        exp_ts = now
+        display_name = "@zzylx" if not token else "Гость"
+        is_active = True
+        exp_ts = now + 30 * 86400  # 30 дней по умолчанию для превью
     else:
         display_name = data.get("u", "Пользователь")
         exp_ts = int(data.get("exp", now))
         is_active = exp_ts > now
 
     status_class = "badge-active" if is_active else "badge-expired"
-    status_text = "АКТИВНА" if is_active else "ИСТЕКЛА"
+    status_text = "🟢 АКТИВНА" if is_active else "🔴 ИСТЕКЛА"
 
     sub_url = DEFAULT_SUB_URL
     sub_url_encoded = urllib.parse.quote(sub_url, safe="")
@@ -95,7 +95,7 @@ def render_portal(token: str) -> HTMLResponse:
         with open(template_path, "r", encoding="utf-8") as f:
             html = f.read()
     except Exception:
-        html = f"<h1>Phantom VPN Portal</h1><p>Пользователь: {display_name}</p><p>Статус: {status_text}</p><p>Ссылка: {sub_url}</p>"
+        html = f"<h1>Phantom VPN Portal</h1><p>Пользователь: {display_name}</p><p>Статус: {status_text}</p>"
 
     html = html.replace("{{ USERNAME }}", display_name)
     html = html.replace("{{ STATUS_CLASS }}", status_class)
@@ -187,7 +187,6 @@ async def process_telegram_webhook(request: Request):
 
     base_url = "https://phantomvpn.vercel.app"
 
-    # Pre-checkout query
     if "pre_checkout_query" in body:
         pcq = body["pre_checkout_query"]
         send_telegram("answerPreCheckoutQuery", {"pre_checkout_query_id": pcq["id"], "ok": True})
@@ -201,7 +200,6 @@ async def process_telegram_webhook(request: Request):
         uname_tag = f"@{username}" if username else from_user.get("first_name", "User")
         is_admin_user = username and username.lower() in [u.lower() for u in ADMIN_USERNAMES]
 
-        # Оплата Stars
         if "successful_payment" in msg:
             payload = msg["successful_payment"]["invoice_payload"]
             days = 90 if "90" in payload else 30
@@ -211,7 +209,7 @@ async def process_telegram_webhook(request: Request):
             text = (
                 "🎉 <b>Оплата успешно принята!</b>\n\n"
                 f"Ваша подписка Phantom VPN активирована на <b>{days} дней</b>.\n\n"
-                "🌐 <b>Твой персональный сайт и личный кабинет:</b>\n"
+                "🌐 <b>Твой персональный сайт и личный кабинет (Remnawave):</b>\n"
                 f"👉 <a href='{portal_url}'>{portal_url}</a>\n"
                 "<i>(На сайте тикает таймер до конца подписки и есть кнопка добавления в 1 клик)</i>\n\n"
                 "🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
@@ -228,7 +226,6 @@ async def process_telegram_webhook(request: Request):
 
         text = msg.get("text", "").strip()
 
-        # /start
         if text.startswith("/start"):
             token = create_user_token(uname_tag, 0)
             portal_url = f"{base_url}/p/{token}"
@@ -240,7 +237,7 @@ async def process_telegram_webhook(request: Request):
                 "⭐ <b>Доступно 25 серверов:</b>\n"
                 "• 18 LTE серверов (обход глушилок мобильного интернета)\n"
                 "• 7 скоростных Wi-Fi 4K серверов\n\n"
-                "🌐 <b>У вас есть Личный Кабинет на сайте с таймером!</b>"
+                "🌐 <b>У вас есть Личный Кабинет Remnawave с живым таймером!</b>"
             )
             buttons = [
                 [
@@ -263,7 +260,6 @@ async def process_telegram_webhook(request: Request):
             })
             return {"ok": True}
 
-        # /add @user 30
         if is_admin_user and (text.startswith("/add") or text.startswith("/grant")):
             parts = text.split()
             if len(parts) >= 3:
@@ -278,7 +274,7 @@ async def process_telegram_webhook(request: Request):
                         f"⏳ Срок: <b>{days} дней</b>\n\n"
                         f"🌐 <b>Персональная ссылка на его сайт-кабинет:</b>\n"
                         f"👉 {portal_url}\n\n"
-                        f"🔗 <i>Отправь эту ссылку покупателю. На сайте у него будет тикать живой таймер и кнопка добавления в Happ VPN!</i>"
+                        f"🔗 <i>Отправь эту ссылку покупателю. На сайте в стиле Remnawave у него будет тикать живой таймер и кнопка добавления в Happ VPN!</i>"
                     )
                     send_telegram("sendMessage", {"chat_id": chat_id, "text": reply_text, "parse_mode": "HTML"})
                     return {"ok": True}
@@ -357,25 +353,34 @@ async def process_telegram_webhook(request: Request):
     return {"ok": True}
 
 # ==============================================================================
-#  УНИВЕРСАЛЬНЫЙ РОУТЕР (Принимает любые пути и методы GET / POST)
+#  УНИВЕРСАЛЬНЫЙ РОУТЕР: ВСЕГДА ОТДАЕТ КРАСИВЫЙ САЙТ В СТИЛЕ REMNAWAVE
 # ==============================================================================
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "HEAD"])
 async def universal_handler(full_path: str, request: Request):
-    # Если это POST-запрос — это webhook от Telegram
     if request.method == "POST":
         return await process_telegram_webhook(request)
 
-    # Определяем реальный путь
-    matched = request.headers.get("x-matched-path", "")
-    req_path = request.url.path
-    path_to_check = matched if matched else req_path
+    # Собираем все варианты путей
+    raw_url = str(request.url)
+    h_uri = request.headers.get("x-forwarded-uri", "")
+    h_match = request.headers.get("x-matched-path", "")
+    h_invoke = request.headers.get("x-invoke-path", "")
+    combined = f"{raw_url} {h_uri} {h_match} {h_invoke} {full_path}"
 
-    if "/sub" in path_to_check:
+    if "/sub" in combined and "/p/" not in combined:
         return render_sub()
 
-    if "/p/" in path_to_check:
-        token = path_to_check.split("/p/")[-1].split("?")[0].strip("/")
-        return render_portal(token)
+    # Извлекаем токен пользователя
+    token = ""
+    if "/p/" in combined:
+        for chunk in [h_uri, h_invoke, raw_url, full_path]:
+            if "/p/" in chunk:
+                token = chunk.split("/p/")[-1].split("?")[0].split("/")[0].strip()
+                break
 
-    return PlainTextResponse("👻 Phantom VPN Web Portal & Bot on Vercel is Running Healthy 24/7!")
+    if not token and request.query_params.get("token"):
+        token = request.query_params.get("token", "")
+
+    # Рендерим полноценный личный кабинет Remnawave / H1Cloud
+    return render_portal(token)

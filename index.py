@@ -41,7 +41,7 @@ def load_db() -> dict:
                 return json.load(f)
         except Exception:
             pass
-    return {"users": {}, "usernames": {}}
+    return {"users": {}, "usernames": {}, "admin_chat_id": None}
 
 def save_db(data: dict):
     try:
@@ -260,7 +260,10 @@ async def process_telegram_webhook(request: Request):
         uname_tag = f"@{username}" if username else from_user.get("first_name", "User")
         is_admin_user = uname_clean in [u.lower() for u in ADMIN_USERNAMES]
 
-        # Сохраняем chat_id пользователя в реестр
+        if is_admin_user:
+            db["admin_chat_id"] = chat_id
+
+        # Сохраняем пользователя
         if uname_clean:
             db["usernames"][uname_clean] = chat_id
         db["users"][str(chat_id)] = {
@@ -301,14 +304,27 @@ async def process_telegram_webhook(request: Request):
 
         # Команда /start
         if text.startswith("/start"):
-            # Проверяем, есть ли у пользователя уже активная подписка
+            # Уведомление админу о новом пользователе
+            if not is_admin_user and db.get("admin_chat_id"):
+                admin_alert = (
+                    f"🔔 <b>Новый пользователь запустил бота!</b>\n\n"
+                    f"👤 Ник: <b>@{username}</b> ({from_user.get('first_name', '')})\n"
+                    f"🆔 Telegram ID: <code>{chat_id}</code>\n\n"
+                    f"• Выдать 30 дней: <code>/add_{chat_id}_30</code>\n"
+                    f"• Снять доступ: <code>/del_{chat_id}</code>"
+                )
+                send_telegram("sendMessage", {
+                    "chat_id": db["admin_chat_id"],
+                    "text": admin_alert,
+                    "parse_mode": "HTML"
+                })
+
             user_data = db["users"].get(str(chat_id), {})
             existing_token = user_data.get("token")
             token_info = decode_user_token(existing_token) if existing_token else None
             now = int(time.time())
 
             if token_info and int(token_info.get("exp", 0)) > now:
-                # У пользователя УЖЕ ЕСТЬ подписка!
                 token = existing_token
                 portal_url = f"{base_url}/p/{token}"
                 exp_dt = datetime.fromtimestamp(int(token_info["exp"]))
@@ -327,7 +343,6 @@ async def process_telegram_webhook(request: Request):
                     [{"text": "💬 Помощь и FAQ", "callback_data": "faq"}]
                 ]
             else:
-                # Подписки нет
                 token = create_user_token(uname_tag, 0)
                 portal_url = f"{base_url}/p/{token}"
                 admin_note = " [👑 АДМИНИСТРАТОР]" if is_admin_user else ""
@@ -352,7 +367,7 @@ async def process_telegram_webhook(request: Request):
                 ]
 
             if is_admin_user:
-                buttons.append([{"text": "👑 Выдать подписку: /add @юзер 30", "callback_data": "adm_help"}])
+                buttons.append([{"text": "👑 Админ: /add @юзер 30 | /del @юзер", "callback_data": "adm_help"}])
 
             send_telegram("sendMessage", {
                 "chat_id": chat_id,
@@ -362,7 +377,120 @@ async def process_telegram_webhook(request: Request):
             })
             return {"ok": True}
 
-        # Выдача подписки админом: /add @username 30
+        # 1-Клик выдача: /add_123456789_30
+        if is_admin_user and text.startswith("/add_"):
+            parts = text.split("_")
+            if len(parts) >= 3:
+                try:
+                    target_id = int(parts[1])
+                    days = int(parts[2])
+                    token = create_user_token(f"ID:{target_id}", days)
+                    portal_url = f"{base_url}/p/{token}"
+                    exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
+
+                    if str(target_id) in db["users"]:
+                        db["users"][str(target_id)]["token"] = token
+                        save_db(db)
+
+                    notify_friend = (
+                        f"🎉 <b>Администратор @zzylx выдал вам VIP-подписку Phantom VPN на {days} дней!</b>\n\n"
+                        f"📅 <b>Действует до:</b> {exp_date}\n\n"
+                        f"🌐 <b>Твой персональный сайт и личный кабинет:</b>\n"
+                        f"👉 <a href='{portal_url}'>{portal_url}</a>\n"
+                        f"<i>(На сайте тикает таймер до конца подписки и есть кнопка добавления в 1 клик)</i>\n\n"
+                        f"🔗 <b>Прямая ссылка для Happ VPN:</b>\n"
+                        f"<code>{DEFAULT_SUB_URL}</code>"
+                    )
+                    kb_friend = {
+                        "inline_keyboard": [
+                            [{"text": "🚀 Добавить в Happ VPN в 1 клик", "url": f"happ://add-sub?url={urllib.parse.quote(DEFAULT_SUB_URL)}"}],
+                            [{"text": "🌐 Открыть Личный Кабинет", "url": portal_url}]
+                        ]
+                    }
+                    send_telegram("sendMessage", {
+                        "chat_id": target_id,
+                        "text": notify_friend,
+                        "parse_mode": "HTML",
+                        "reply_markup": kb_friend
+                    })
+
+                    send_telegram("sendMessage", {
+                        "chat_id": chat_id,
+                        "text": f"✅ <b>Успешно! Пользователю {target_id} отправлена подписка на {days} дней в личку!</b>\n\n🌐 Ссылка на сайт: {portal_url}",
+                        "parse_mode": "HTML"
+                    })
+                    return {"ok": True}
+                except Exception as e:
+                    print("Error in /add_id:", e)
+
+        # 1-Клик снятие подписки: /del_123456789
+        if is_admin_user and text.startswith("/del_"):
+            parts = text.split("_")
+            if len(parts) >= 2:
+                try:
+                    target_id = int(parts[1])
+                    expired_token = create_user_token(f"ID:{target_id}", 0)
+
+                    if str(target_id) in db["users"]:
+                        db["users"][str(target_id)]["token"] = expired_token
+                        save_db(db)
+
+                    send_telegram("sendMessage", {
+                        "chat_id": target_id,
+                        "text": "⚠️ <b>Ваша подписка Phantom VPN была аннулирована администратором.</b>\n\nДоступ к серверам отключен.",
+                        "parse_mode": "HTML"
+                    })
+
+                    send_telegram("sendMessage", {
+                        "chat_id": chat_id,
+                        "text": f"🚫 <b>Подписка пользователя {target_id} успешно снята!</b>\nСервера отключены.",
+                        "parse_mode": "HTML"
+                    })
+                    return {"ok": True}
+                except Exception as e:
+                    print("Error in /del_id:", e)
+
+        # Снятие подписки: /del @username или /del 123456789 или /remove @username
+        if is_admin_user and (text.startswith("/del") or text.startswith("/remove") or text.startswith("/revoke")):
+            parts = text.split()
+            if len(parts) >= 2:
+                target_user = parts[1]
+                target_clean = target_user.lstrip("@").lower()
+
+                friend_chat_id = None
+                if target_clean.isdigit():
+                    friend_chat_id = int(target_clean)
+                else:
+                    friend_chat_id = db["usernames"].get(target_clean)
+
+                expired_token = create_user_token(f"@{target_clean}", 0)
+
+                if friend_chat_id and str(friend_chat_id) in db["users"]:
+                    db["users"][str(friend_chat_id)]["token"] = expired_token
+                    save_db(db)
+
+                if friend_chat_id:
+                    send_telegram("sendMessage", {
+                        "chat_id": friend_chat_id,
+                        "text": "⚠️ <b>Ваша подписка Phantom VPN была аннулирована администратором.</b>\n\nДоступ к серверам закрыт.",
+                        "parse_mode": "HTML"
+                    })
+
+                admin_reply = (
+                    f"🚫 <b>Подписка пользователя @{target_clean} успешно аннулирована!</b>\n\n"
+                    f"Доступ к серверам закрыт, а на его сайте теперь статус 🔴 ИСТЕКЛА."
+                )
+                send_telegram("sendMessage", {"chat_id": chat_id, "text": admin_reply, "parse_mode": "HTML"})
+                return {"ok": True}
+
+            send_telegram("sendMessage", {
+                "chat_id": chat_id,
+                "text": "Формат команды: <code>/del @username</code> или <code>/del 123456789</code>",
+                "parse_mode": "HTML"
+            })
+            return {"ok": True}
+
+        # Выдача подписки: /add @username 30 или /add 123456789 30
         if is_admin_user and (text.startswith("/add") or text.startswith("/grant")):
             parts = text.split()
             if len(parts) >= 3:
@@ -374,16 +502,17 @@ async def process_telegram_webhook(request: Request):
                     portal_url = f"{base_url}/p/{token}"
                     exp_date = (datetime.now() + timedelta(days=days)).strftime("%d.%m.%Y")
 
-                    # Проверяем, запускал ли друг бота (известен ли chat_id)
-                    friend_chat_id = db["usernames"].get(target_clean)
+                    friend_chat_id = None
+                    if target_clean.isdigit():
+                        friend_chat_id = int(target_clean)
+                    else:
+                        friend_chat_id = db["usernames"].get(target_clean)
 
                     if friend_chat_id:
-                        # Сохраняем токен в базу друга
                         if str(friend_chat_id) in db["users"]:
                             db["users"][str(friend_chat_id)]["token"] = token
                             save_db(db)
 
-                        # АВТОМАТИЧЕСКИ ОТПРАВЛЯЕМ ПОДПИСКУ ДРУГУ В ЛИЧКУ!
                         notify_friend = (
                             f"🎉 <b>Администратор @zzylx выдал вам VIP-подписку Phantom VPN на {days} дней!</b>\n\n"
                             f"📅 <b>Действует до:</b> {exp_date}\n\n"
@@ -410,18 +539,17 @@ async def process_telegram_webhook(request: Request):
                             f"✅ <b>Подписка успешно выдана!</b>\n\n"
                             f"👤 Пользователь: <b>@{target_clean}</b>\n"
                             f"⏳ Срок: <b>{days} дней</b> (до {exp_date})\n\n"
-                            f"🚀 <b>Бот автоматически отправил сообщение и ссылку пользователю @{target_clean} в личные сообщения!</b>\n\n"
+                            f"🚀 <b>Бот автоматически отправил сообщение и активную ссылку пользователю @{target_clean} в личку!</b>\n\n"
                             f"🌐 Ссылка на его сайт: {portal_url}"
                         )
                     else:
                         admin_reply = (
-                            f"✅ <b>Подписка на {days} дней создана!</b>\n\n"
-                            f"👤 Пользователь: <b>@{target_clean}</b>\n"
-                            f"⏳ Срок: <b>{days} дней</b> (до {exp_date})\n\n"
-                            f"⚠️ <i>Пользователь @{target_clean} ещё не запускал этого бота (/start), поэтому правила Telegram запрещают боту писать ему первым.</i>\n\n"
-                            f"👉 <b>Отправь ему эту готовую ссылку на сайт:</b>\n"
-                            f"{portal_url}\n\n"
-                            f"<i>Либо попроси его нажать /start в боте, и в следующий раз бот будет присылать ему всё сам!</i>"
+                            f"✅ <b>Подписка на {days} дней для @{target_clean} создана!</b>\n\n"
+                            f"📅 Действует до: <b>{exp_date}</b>\n\n"
+                            f"🌐 <b>ВОТ ЕГО ПЕРСОНАЛЬНАЯ ССЫЛКА НА САЙТ (АКТИВНА 30 ДНЕЙ):</b>\n"
+                            f"👉 <code>{portal_url}</code>\n\n"
+                            f"⚠️ <b>ВАЖНО:</b> Перешли другу @{target_clean} <b>ИМЕННО ЭТУ ССЫЛКУ ВЫШЕ!</b>\n"
+                            f"<i>(На старой ссылке из /start было 0 дней. Как только он откроет ссылку выше — у него сразу загорится 🟢 АКТИВНА и таймер на 30 дней!)</i>"
                         )
 
                     send_telegram("sendMessage", {"chat_id": chat_id, "text": admin_reply, "parse_mode": "HTML"})
@@ -494,7 +622,7 @@ async def process_telegram_webhook(request: Request):
         elif data == "adm_help":
             send_telegram("sendMessage", {
                 "chat_id": chat_id,
-                "text": "👑 <b>Команды администратора (@zzylx):</b>\n\nЧтобы выдать подписку, напиши:\n<code>/add @username 30</code>\n\nЕсли пользователь уже нажимал /start, бот автоматически отправит ему подписку в личку!",
+                "text": "👑 <b>Команды администратора (@zzylx):</b>\n\n• Выдать подписку: <code>/add @username 30</code>\n• Снять подписку: <code>/del @username</code> (или <code>/del 123456789</code>)",
                 "parse_mode": "HTML"
             })
 
